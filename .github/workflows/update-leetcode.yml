@@ -2,10 +2,13 @@ name: Update LeetCode Leaderboard
 
 on:
   schedule:
-    - cron: "2/5 * * * *"
+    - cron: "*/5 * * * *"
+
   workflow_dispatch:
+
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - "tracker.py"
       - "requirements.txt"
@@ -20,6 +23,7 @@ concurrency:
 jobs:
   update-dashboard:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,11 +51,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add students.csv Students.xlsx LiveData.csv History.csv DailyActivity.csv
+
           if git diff --cached --quiet; then
             echo "No dashboard changes to commit."
             exit 0
           fi
+
           git commit -m "Auto update LeetCode leaderboard"
+
           git pull --rebase origin main
+
           git push origin main
