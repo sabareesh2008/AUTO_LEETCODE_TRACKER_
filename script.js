@@ -346,6 +346,14 @@ async function loadData() {
     }
 
     allStudents = parseCSV(await response.text());
+    // Display students in Register Number order
+allStudents.sort((a, b) =>
+    String(a["Register Number"]).localeCompare(
+        String(b["Register Number"]),
+        undefined,
+        { numeric: true }
+    )
+);
 
     updateLastUpdated(allStudents);
     applySearch();
