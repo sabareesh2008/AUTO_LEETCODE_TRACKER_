@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta
     name="description"
-    content="LeetCode student progress leaderboard with public viewing and admin management."
+    content="ECE LeetCode department leaderboard with section-wise and overall views."
   >
-  <title>LeetCode Progress Leaderboard</title>
+  <title>ECE LeetCode Leaderboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -17,16 +17,15 @@
 
   <header class="hero">
     <div class="hero-copy">
-      <div class="eyebrow">LIVE CODING PROGRESS</div>
+      <div class="eyebrow">ECE CODING PROGRESS</div>
 
       <h1>
-        LeetCode
-        <span>30-Day Leaderboard</span>
+        ECE
+        <span>LeetCode Leaderboard</span>
       </h1>
 
-      <p>
-        Public leaderboard for student coding progress.
-        Ranking is based primarily on problems solved during the last 30 days.
+      <p id="heroDescription">
+        Choose a section to view its leaderboard, or open Overall to compare the whole department.
       </p>
     </div>
 
@@ -52,39 +51,19 @@
   </header>
 
   <main class="container">
-    <section class="control-panel">
-      <div class="search-wrap">
-        <label for="searchInput">Search students</label>
 
-        <div class="search-field">
-          <span aria-hidden="true">⌕</span>
-
-          <input
-            id="searchInput"
-            type="search"
-            placeholder="Name, register number or LeetCode username"
-            autocomplete="off"
-          >
+    <!-- =====================================================
+         SECTION HOME
+         ===================================================== -->
+    <section id="sectionHome" class="section-home">
+      <div class="section-home-head">
+        <div>
+          <div class="eyebrow">SELECT SECTION</div>
+          <h2>ECE Department Leaderboards</h2>
+          <p>
+            Each section has its own rank. Overall compares all ECE sections together.
+          </p>
         </div>
-      </div>
-
-      <div class="actions">
-        <!-- PUBLIC -->
-        <button
-          id="downloadCsvButton"
-          class="action-button secondary"
-          type="button"
-        >
-          CSV
-        </button>
-
-        <button
-          id="downloadPdfButton"
-          class="action-button secondary"
-          type="button"
-        >
-          PDF
-        </button>
 
         <button
           id="adminLoginButton"
@@ -93,96 +72,208 @@
         >
           Admin Login
         </button>
+      </div>
 
-        <!-- ADMIN ONLY -->
-        <button
-          id="addProfileButton"
-          class="action-button primary admin-only"
-          type="button"
-          hidden
-        >
+      <div class="section-grid">
+        <button class="section-card" data-section="ECE A" type="button">
+          <span class="section-card-title">ECE A</span>
+          <strong id="countECEA">0</strong>
+          <span>Students</span>
+        </button>
+
+        <button class="section-card" data-section="ECE B" type="button">
+          <span class="section-card-title">ECE B</span>
+          <strong id="countECEB">0</strong>
+          <span>Students</span>
+        </button>
+
+        <button class="section-card" data-section="ECE C" type="button">
+          <span class="section-card-title">ECE C</span>
+          <strong id="countECEC">0</strong>
+          <span>Students</span>
+        </button>
+
+        <button class="section-card" data-section="ECE D" type="button">
+          <span class="section-card-title">ECE D</span>
+          <strong id="countECED">0</strong>
+          <span>Students</span>
+        </button>
+
+        <button class="section-card" data-section="ECE E" type="button">
+          <span class="section-card-title">ECE E</span>
+          <strong id="countECEE">0</strong>
+          <span>Students</span>
+        </button>
+
+        <button class="section-card" data-section="ECE F" type="button">
+          <span class="section-card-title">ECE F</span>
+          <strong id="countECEF">0</strong>
+          <span>Students</span>
+        </button>
+
+        <button class="section-card overall-card" data-section="OVERALL" type="button">
+          <span class="section-card-title">Overall</span>
+          <strong id="countOverall">0</strong>
+          <span>Total Students</span>
+        </button>
+      </div>
+
+      <div class="home-admin-actions admin-only" hidden>
+        <button id="homeAddProfileButton" class="action-button primary" type="button">
           + Add Profile
         </button>
 
-        <button
-          id="syncNowButton"
-          class="action-button secondary admin-only"
-          type="button"
-          hidden
-        >
+        <button id="homeSyncNowButton" class="action-button secondary" type="button">
           ↻ Sync Now
         </button>
 
-        <button
-          id="manageStudentsButton"
-          class="action-button secondary admin-only"
-          type="button"
-          hidden
-        >
+        <button id="homeManageStudentsButton" class="action-button secondary" type="button">
           Manage Students
         </button>
 
-        <button
-          id="adminLogoutButton"
-          class="action-button secondary admin-only"
-          type="button"
-          hidden
-        >
+        <button id="homeAdminLogoutButton" class="action-button secondary" type="button">
           Logout
         </button>
       </div>
     </section>
 
-    <section class="legend">
-      <div>
-        <span class="legend-rank">#</span>
-        Ranking priority:
-        <strong>Last 30 Days</strong>
-      </div>
+    <!-- =====================================================
+         LEADERBOARD VIEW
+         ===================================================== -->
+    <section id="leaderboardView" hidden>
+      <section class="leaderboard-topbar">
+        <button id="backToSectionsButton" class="action-button secondary" type="button">
+          ← Sections
+        </button>
 
-      <div id="accessNote" class="legend-note">
-        Public view · No login required
-      </div>
+        <div class="leaderboard-title-wrap">
+          <div class="eyebrow" id="currentViewLabel">SECTION</div>
+          <h2 id="currentViewTitle">ECE E Leaderboard</h2>
+        </div>
+      </section>
+
+      <section class="control-panel">
+        <div class="search-wrap">
+          <label for="searchInput">Search students</label>
+
+          <div class="search-field">
+            <span aria-hidden="true">⌕</span>
+
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Name, register number or LeetCode username"
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <div class="actions">
+          <button
+            id="downloadCsvButton"
+            class="action-button secondary"
+            type="button"
+          >
+            CSV
+          </button>
+
+          <button
+            id="downloadPdfButton"
+            class="action-button secondary"
+            type="button"
+          >
+            PDF
+          </button>
+
+          <button
+            id="addProfileButton"
+            class="action-button primary admin-only"
+            type="button"
+            hidden
+          >
+            + Add Profile
+          </button>
+
+          <button
+            id="syncNowButton"
+            class="action-button secondary admin-only"
+            type="button"
+            hidden
+          >
+            ↻ Sync Now
+          </button>
+
+          <button
+            id="manageStudentsButton"
+            class="action-button secondary admin-only"
+            type="button"
+            hidden
+          >
+            Manage Students
+          </button>
+
+          <button
+            id="adminLogoutButton"
+            class="action-button secondary admin-only"
+            type="button"
+            hidden
+          >
+            Logout
+          </button>
+        </div>
+      </section>
+
+      <section class="legend">
+        <div>
+          <span class="legend-rank">#</span>
+          <span id="rankLegendText">Section Rank</span>
+        </div>
+
+        <div id="accessNote" class="legend-note">
+          Public view · No login required
+        </div>
+      </section>
+
+      <section class="table-shell" id="printArea">
+        <div class="print-heading">
+          <h2 id="printTitle">ECE Leaderboard</h2>
+          <p id="printUpdatedAt"></p>
+        </div>
+
+        <div class="table-scroll">
+          <table id="studentTable">
+            <thead>
+              <tr id="tableHeaderRow">
+                <th>Rank</th>
+                <th class="overall-only" hidden>Section</th>
+                <th>Student</th>
+                <th>LeetCode</th>
+                <th>30 Days</th>
+                <th>7 Days</th>
+                <th>Today</th>
+                <th>Total</th>
+                <th>Easy</th>
+                <th>Medium</th>
+                <th>Hard</th>
+                <th>Last Problem</th>
+                <th>Last Solved</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody id="studentTableBody">
+              <tr>
+                <td colspan="14" class="loading-row">
+                  Loading leaderboard...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p id="message" class="message" aria-live="polite"></p>
     </section>
-
-    <section class="table-shell" id="printArea">
-      <div class="print-heading">
-        <h2>LeetCode 30-Day Leaderboard</h2>
-        <p id="printUpdatedAt"></p>
-      </div>
-
-      <div class="table-scroll">
-        <table id="studentTable">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Student</th>
-              <th>LeetCode</th>
-              <th>30 Days</th>
-              <th>7 Days</th>
-              <th>Today</th>
-              <th>Total</th>
-              <th>Easy</th>
-              <th>Medium</th>
-              <th>Hard</th>
-              <th>Last Problem</th>
-              <th>Last Solved</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-
-          <tbody id="studentTableBody">
-            <tr>
-              <td colspan="13" class="loading-row">
-                Loading leaderboard...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <p id="message" class="message" aria-live="polite"></p>
   </main>
 
   <!-- =======================================================
@@ -203,67 +294,30 @@
           <h2 id="adminLoginTitle">Administrator Login</h2>
         </div>
 
-        <button
-          id="closeAdminLogin"
-          class="modal-close"
-          type="button"
-          aria-label="Close"
-        >
-          ×
-        </button>
+        <button id="closeAdminLogin" class="modal-close" type="button">×</button>
       </div>
-
-      <p class="modal-help">
-        Only accounts assigned the <strong>admin</strong> role can enter Admin Mode.
-      </p>
 
       <form id="adminLoginForm">
         <label class="form-label" for="adminEmail">Email</label>
-        <input
-          id="adminEmail"
-          class="form-input"
-          type="email"
-          autocomplete="username"
-          required
-          placeholder="admin@example.com"
-        >
+        <input id="adminEmail" class="form-input" type="email" required>
 
         <label class="form-label" for="adminPassword">Password</label>
         <div class="password-field">
-          <input
-            id="adminPassword"
-            class="form-input"
-            type="password"
-            autocomplete="current-password"
-            required
-            placeholder="Password"
-          >
+          <input id="adminPassword" class="form-input" type="password" required>
 
-          <button
-            id="toggleAdminPassword"
-            class="password-toggle"
-            type="button"
-          >
+          <button id="toggleAdminPassword" class="password-toggle" type="button">
             Show
           </button>
         </div>
 
-        <p id="adminLoginMessage" class="form-message" aria-live="polite"></p>
+        <p id="adminLoginMessage" class="form-message"></p>
 
         <div class="modal-actions">
-          <button
-            type="button"
-            class="action-button secondary"
-            data-close-admin-login
-          >
+          <button type="button" class="action-button secondary" data-close-admin-login>
             Cancel
           </button>
 
-          <button
-            id="adminSignInButton"
-            class="action-button primary"
-            type="submit"
-          >
+          <button id="adminSignInButton" class="action-button primary" type="submit">
             Login
           </button>
         </div>
@@ -277,83 +331,56 @@
   <div id="profileModal" class="profile-modal" hidden>
     <div class="profile-modal-backdrop" data-close-profile></div>
 
-    <section
-      class="profile-modal-card"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="profileModalTitle"
-    >
+    <section class="profile-modal-card" role="dialog" aria-modal="true">
       <div class="profile-modal-head">
         <div>
           <div class="eyebrow">ADMIN PROFILE MANAGEMENT</div>
           <h2 id="profileModalTitle">Add LeetCode Profile</h2>
         </div>
 
-        <button
-          id="closeProfileModal"
-          class="modal-close"
-          type="button"
-          aria-label="Close"
-        >
-          ×
-        </button>
+        <button id="closeProfileModal" class="modal-close" type="button">×</button>
       </div>
-
-      <p class="modal-help">
-        Register number and LeetCode username must be unique.
-      </p>
 
       <form id="profileForm">
         <input id="editingStudentId" type="hidden">
 
         <label class="form-label" for="registerNumber">Register Number</label>
-        <input
-          class="form-input"
-          id="registerNumber"
-          required
-          maxlength="50"
-          placeholder="922525106264"
-        >
+        <input id="registerNumber" class="form-input" required>
 
         <label class="form-label" for="studentName">Student Name</label>
-        <input
-          class="form-input"
-          id="studentName"
-          required
-          maxlength="100"
-          placeholder="Student name"
-        >
+        <input id="studentName" class="form-input" required>
 
         <label class="form-label" for="leetcodeUsername">LeetCode Username</label>
         <input
-          class="form-input"
           id="leetcodeUsername"
+          class="form-input"
           required
-          maxlength="50"
           pattern="[A-Za-z0-9_-]+"
-          placeholder="leetcode_username"
         >
+
+        <label class="form-label" for="studentSection">Section</label>
+        <select id="studentSection" class="form-input" required>
+          <option value="">Select Section</option>
+          <option value="ECE A">ECE A</option>
+          <option value="ECE B">ECE B</option>
+          <option value="ECE C">ECE C</option>
+          <option value="ECE D">ECE D</option>
+          <option value="ECE E">ECE E</option>
+          <option value="ECE F">ECE F</option>
+        </select>
 
         <div class="generated-link" id="generatedLink">
           https://leetcode.com/u/username/
         </div>
 
-        <p id="formMessage" class="form-message" aria-live="polite"></p>
+        <p id="formMessage" class="form-message"></p>
 
         <div class="modal-actions">
-          <button
-            type="button"
-            class="action-button secondary"
-            data-close-profile
-          >
+          <button type="button" class="action-button secondary" data-close-profile>
             Cancel
           </button>
 
-          <button
-            id="saveProfileButton"
-            type="submit"
-            class="action-button primary"
-          >
+          <button id="saveProfileButton" type="submit" class="action-button primary">
             Add User
           </button>
         </div>
@@ -367,35 +394,32 @@
   <div id="manageStudentsModal" class="profile-modal" hidden>
     <div class="profile-modal-backdrop" data-close-manage></div>
 
-    <section
-      class="profile-modal-card manage-modal-card"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="manageStudentsTitle"
-    >
+    <section class="profile-modal-card manage-modal-card" role="dialog" aria-modal="true">
       <div class="profile-modal-head">
         <div>
           <div class="eyebrow">ADMIN</div>
-          <h2 id="manageStudentsTitle">Manage Students</h2>
+          <h2>Manage Students</h2>
         </div>
 
-        <button
-          id="closeManageStudents"
-          class="modal-close"
-          type="button"
-          aria-label="Close"
-        >
-          ×
-        </button>
+        <button id="closeManageStudents" class="modal-close" type="button">×</button>
       </div>
 
-      <div class="manage-toolbar">
+      <div class="manage-toolbar section-manage-toolbar">
+        <select id="manageSectionFilter" class="form-input">
+          <option value="ALL">All Sections</option>
+          <option value="ECE A">ECE A</option>
+          <option value="ECE B">ECE B</option>
+          <option value="ECE C">ECE C</option>
+          <option value="ECE D">ECE D</option>
+          <option value="ECE E">ECE E</option>
+          <option value="ECE F">ECE F</option>
+        </select>
+
         <input
           id="manageSearch"
           class="form-input"
           type="search"
-          placeholder="Search by name, register number or username"
-          autocomplete="off"
+          placeholder="Search student..."
         >
 
         <span id="manageCount" class="manage-count">0 students</span>
@@ -405,6 +429,7 @@
         <table class="manage-table">
           <thead>
             <tr>
+              <th>Section</th>
               <th>Register No</th>
               <th>Student</th>
               <th>LeetCode</th>
@@ -412,11 +437,7 @@
             </tr>
           </thead>
 
-          <tbody id="manageStudentsBody">
-            <tr>
-              <td colspan="4" class="loading-row">Loading students...</td>
-            </tr>
-          </tbody>
+          <tbody id="manageStudentsBody"></tbody>
         </table>
       </div>
     </section>
@@ -428,39 +449,23 @@
   <div id="deleteModal" class="profile-modal" hidden>
     <div class="profile-modal-backdrop" data-close-delete></div>
 
-    <section
-      class="profile-modal-card delete-card"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="deleteModalTitle"
-    >
+    <section class="profile-modal-card delete-card" role="dialog" aria-modal="true">
       <div class="profile-modal-head">
         <div>
           <div class="eyebrow danger-eyebrow">ADMIN ACTION</div>
-          <h2 id="deleteModalTitle">Delete Profile?</h2>
+          <h2>Delete Profile?</h2>
         </div>
       </div>
 
-      <p id="deleteDescription" class="modal-help">
-        This removes the student from the managed profile list.
-      </p>
-
-      <p id="deleteMessage" class="form-message" aria-live="polite"></p>
+      <p id="deleteDescription" class="modal-help"></p>
+      <p id="deleteMessage" class="form-message"></p>
 
       <div class="modal-actions">
-        <button
-          id="cancelDeleteButton"
-          type="button"
-          class="action-button secondary"
-        >
+        <button id="cancelDeleteButton" class="action-button secondary" type="button">
           Cancel
         </button>
 
-        <button
-          id="confirmDeleteButton"
-          type="button"
-          class="action-button danger-button"
-        >
+        <button id="confirmDeleteButton" class="action-button danger-button" type="button">
           Delete Profile
         </button>
       </div>
@@ -468,7 +473,7 @@
   </div>
 
   <footer>
-    Public leaderboard · Admin operations protected by Supabase Auth + RLS
+    ECE LeetCode Department Tracker · Supabase · GitHub Actions
   </footer>
 
   <script src="config.js"></script>
