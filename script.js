@@ -894,6 +894,52 @@ async function initialize() {
     showLogin(error.message);
   }
 }
+async function triggerLeetCodeSync() {
+
+    const button =
+        document.getElementById("syncNowButton");
+
+    button.disabled = true;
+    button.textContent = "⏳ Syncing...";
+
+    try {
+
+        const { data, error } =
+            await supabaseClient.functions.invoke(
+                "super-action",
+                {
+                    body: {
+                        source: "admin-sync-button"
+                    }
+                }
+            );
+
+        if (error) {
+            throw error;
+        }
+
+        console.log("GitHub Action triggered:", data);
+
+        alert(
+            "✅ LeetCode update started!\n\n" +
+            "GitHub Actions is checking all students."
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "❌ Unable to start LeetCode update.\n" +
+            error.message
+        );
+
+    } finally {
+
+        button.disabled = false;
+        button.textContent = "🔄 Sync LeetCode Now";
+    }
+}
 
 
 loginForm.addEventListener("submit", handleLogin);
@@ -976,3 +1022,6 @@ setInterval(() => {
     loadData();
   }
 }, 30000);
+document
+    .getElementById("syncNowButton")
+    .addEventListener("click", triggerLeetCodeSync);
