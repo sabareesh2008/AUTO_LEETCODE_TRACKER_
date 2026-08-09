@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Secure LeetCode student leaderboard with public and admin access.">
+  <meta
+    name="description"
+    content="LeetCode student progress leaderboard with public viewing and admin management."
+  >
   <title>LeetCode Progress Leaderboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -12,301 +15,461 @@
   <div class="background-orb orb-one"></div>
   <div class="background-orb orb-two"></div>
 
-  <!-- =======================================================
-       LOGIN
-       ======================================================= -->
-  <main id="loginView" class="auth-page">
-    <section class="auth-card" aria-labelledby="loginTitle">
-      <div class="auth-brand">
-        <div class="eyebrow">SECURE CODING DASHBOARD</div>
-        <h1 id="loginTitle">LeetCode <span>Progress</span></h1>
-        <p>
-          Sign in with your Supabase account. Public users can view the
-          leaderboard. Administrators can manage student profiles.
-        </p>
+  <header class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow">LIVE CODING PROGRESS</div>
+
+      <h1>
+        LeetCode
+        <span>30-Day Leaderboard</span>
+      </h1>
+
+      <p>
+        Public leaderboard for student coding progress.
+        Ranking is based primarily on problems solved during the last 30 days.
+      </p>
+    </div>
+
+    <div class="hero-side">
+      <div id="adminSessionCard" class="session-card" hidden>
+        <div>
+          <span>Administrator</span>
+          <strong id="sessionEmail">—</strong>
+        </div>
+
+        <span class="role-badge role-admin">Admin Mode</span>
       </div>
 
-      <form id="loginForm" class="auth-form">
-        <label class="form-label" for="loginEmail">Email</label>
+      <div class="status-card">
+        <div class="live-dot"></div>
+
+        <div>
+          <span>Last updated</span>
+          <strong id="lastUpdated">Loading...</strong>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="control-panel">
+      <div class="search-wrap">
+        <label for="searchInput">Search students</label>
+
+        <div class="search-field">
+          <span aria-hidden="true">⌕</span>
+
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Name, register number or LeetCode username"
+            autocomplete="off"
+          >
+        </div>
+      </div>
+
+      <div class="actions">
+        <!-- PUBLIC -->
+        <button
+          id="downloadCsvButton"
+          class="action-button secondary"
+          type="button"
+        >
+          CSV
+        </button>
+
+        <button
+          id="downloadPdfButton"
+          class="action-button secondary"
+          type="button"
+        >
+          PDF
+        </button>
+
+        <button
+          id="adminLoginButton"
+          class="action-button primary"
+          type="button"
+        >
+          Admin Login
+        </button>
+
+        <!-- ADMIN ONLY -->
+        <button
+          id="addProfileButton"
+          class="action-button primary admin-only"
+          type="button"
+          hidden
+        >
+          + Add Profile
+        </button>
+
+        <button
+          id="syncNowButton"
+          class="action-button secondary admin-only"
+          type="button"
+          hidden
+        >
+          ↻ Sync Now
+        </button>
+
+        <button
+          id="manageStudentsButton"
+          class="action-button secondary admin-only"
+          type="button"
+          hidden
+        >
+          Manage Students
+        </button>
+
+        <button
+          id="adminLogoutButton"
+          class="action-button secondary admin-only"
+          type="button"
+          hidden
+        >
+          Logout
+        </button>
+      </div>
+    </section>
+
+    <section class="legend">
+      <div>
+        <span class="legend-rank">#</span>
+        Ranking priority:
+        <strong>Last 30 Days</strong>
+      </div>
+
+      <div id="accessNote" class="legend-note">
+        Public view · No login required
+      </div>
+    </section>
+
+    <section class="table-shell" id="printArea">
+      <div class="print-heading">
+        <h2>LeetCode 30-Day Leaderboard</h2>
+        <p id="printUpdatedAt"></p>
+      </div>
+
+      <div class="table-scroll">
+        <table id="studentTable">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Student</th>
+              <th>LeetCode</th>
+              <th>30 Days</th>
+              <th>7 Days</th>
+              <th>Today</th>
+              <th>Total</th>
+              <th>Easy</th>
+              <th>Medium</th>
+              <th>Hard</th>
+              <th>Last Problem</th>
+              <th>Last Solved</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody id="studentTableBody">
+            <tr>
+              <td colspan="13" class="loading-row">
+                Loading leaderboard...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <p id="message" class="message" aria-live="polite"></p>
+  </main>
+
+  <!-- =======================================================
+       ADMIN LOGIN
+       ======================================================= -->
+  <div id="adminLoginModal" class="profile-modal" hidden>
+    <div class="profile-modal-backdrop" data-close-admin-login></div>
+
+    <section
+      class="profile-modal-card admin-login-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="adminLoginTitle"
+    >
+      <div class="profile-modal-head">
+        <div>
+          <div class="eyebrow">ADMIN ACCESS</div>
+          <h2 id="adminLoginTitle">Administrator Login</h2>
+        </div>
+
+        <button
+          id="closeAdminLogin"
+          class="modal-close"
+          type="button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+
+      <p class="modal-help">
+        Only accounts assigned the <strong>admin</strong> role can enter Admin Mode.
+      </p>
+
+      <form id="adminLoginForm">
+        <label class="form-label" for="adminEmail">Email</label>
         <input
+          id="adminEmail"
           class="form-input"
-          id="loginEmail"
           type="email"
           autocomplete="username"
           required
-          placeholder="name@example.com"
+          placeholder="admin@example.com"
         >
 
-        <label class="form-label" for="loginPassword">Password</label>
+        <label class="form-label" for="adminPassword">Password</label>
         <div class="password-field">
           <input
+            id="adminPassword"
             class="form-input"
-            id="loginPassword"
             type="password"
             autocomplete="current-password"
             required
-            placeholder="Enter password"
+            placeholder="Password"
           >
+
           <button
-            id="togglePasswordButton"
+            id="toggleAdminPassword"
             class="password-toggle"
             type="button"
-            aria-label="Show password"
           >
             Show
           </button>
         </div>
 
-        <p id="loginMessage" class="form-message" aria-live="polite"></p>
-
-        <button id="loginButton" class="action-button primary auth-submit" type="submit">
-          Sign In
-        </button>
-      </form>
-
-      <div class="auth-foot">
-        <span class="security-dot"></span>
-        Authentication and permissions are enforced by Supabase Auth + RLS.
-      </div>
-    </section>
-  </main>
-
-  <!-- =======================================================
-       DASHBOARD
-       ======================================================= -->
-  <div id="appView" hidden>
-    <header class="hero">
-      <div class="hero-copy">
-        <div class="eyebrow">LIVE CODING PROGRESS</div>
-        <h1>LeetCode <span>30-Day Leaderboard</span></h1>
-        <p>
-          Cloud-synced student coding activity. Rankings prioritize unique
-          problems solved during the last 30 days.
-        </p>
-      </div>
-
-      <div class="hero-side">
-        <div class="session-card">
-          <div>
-            <span>Signed in as</span>
-            <strong id="sessionEmail">—</strong>
-          </div>
-          <span id="roleBadge" class="role-badge">Checking role…</span>
-          <button id="logoutButton" class="logout-button" type="button">Logout</button>
-        </div>
-
-        <div class="status-card">
-          <div class="live-dot"></div>
-          <div>
-            <span>Last updated</span>
-            <strong id="lastUpdated">Loading...</strong>
-          </div>
-        </div>
-      </div>
-      <button
-    id="syncNowButton"
-    type="button"
-    class="action-button secondary admin-only"
-    hidden
->
-    🔄 Sync LeetCode Now
-</button>
-    </header>
-
-    <main class="container">
-      <section class="control-panel">
-        <div class="search-wrap">
-          <label for="searchInput">Search students</label>
-          <div class="search-field">
-            <span aria-hidden="true">⌕</span>
-            <input
-              id="searchInput"
-              type="search"
-              placeholder="Name, register number or LeetCode username"
-              autocomplete="off"
-            >
-          </div>
-        </div>
-
-        <div class="actions">
-          <button id="addProfileButton" class="action-button primary admin-only" type="button" hidden>
-            + Add Profile
-          </button>
-          <button id="downloadCsvButton" class="action-button secondary" type="button">CSV</button>
-          <button id="downloadExcelButton" class="action-button secondary" type="button">Excel</button>
-          <button id="downloadPdfButton" class="action-button secondary" type="button">PDF</button>
-        </div>
-      </section>
-
-      <section class="legend">
-        <div>
-          <span class="legend-rank">#</span>
-          Ranking priority: <strong>Last 30 Days</strong>
-        </div>
-        <div id="accessNote" class="legend-note">Checking permissions…</div>
-      </section>
-
-      <section class="table-shell" id="printArea">
-        <div class="print-heading">
-          <h2>LeetCode 30-Day Leaderboard</h2>
-          <p id="printUpdatedAt"></p>
-        </div>
-
-        <div class="table-scroll">
-          <table id="studentTable">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Student</th>
-                <th>LeetCode</th>
-                <th>30 Days</th>
-                <th>7 Days</th>
-                <th>Today</th>
-                <th>Total</th>
-                <th>Easy</th>
-                <th>Medium</th>
-                <th>Hard</th>
-                <th>Last Problem</th>
-                <th>Last Solved</th>
-                <th>Status</th>
-                <th id="actionsHeader" class="admin-only" hidden>Actions</th>
-              </tr>
-            </thead>
-
-            <tbody id="studentTableBody">
-              <tr>
-                <td colspan="14" class="loading-row">Loading leaderboard...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <p id="message" class="message" aria-live="polite"></p>
-    </main>
-
-    <!-- =====================================================
-         ADD / EDIT PROFILE MODAL
-         ===================================================== -->
-    <div id="profileModal" class="profile-modal" hidden>
-      <div class="profile-modal-backdrop" data-close-modal></div>
-
-      <section
-        class="profile-modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="profileModalTitle"
-      >
-        <div class="profile-modal-head">
-          <div>
-            <div class="eyebrow">ADMIN PROFILE MANAGEMENT</div>
-            <h2 id="profileModalTitle">Add LeetCode Profile</h2>
-          </div>
-
-          <button
-            id="closeProfileModal"
-            class="modal-close"
-            type="button"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-
-        <p class="modal-help">
-          Register number and LeetCode username must be unique.
-        </p>
-
-        <form id="profileForm">
-          <input id="editingStudentId" type="hidden">
-
-          <label class="form-label" for="registerNumber">Register Number</label>
-          <input
-            class="form-input"
-            id="registerNumber"
-            name="registerNumber"
-            required
-            maxlength="50"
-            placeholder="922525106264"
-          >
-
-          <label class="form-label" for="studentName">Student Name</label>
-          <input
-            class="form-input"
-            id="studentName"
-            name="studentName"
-            required
-            maxlength="100"
-            placeholder="Student name"
-          >
-
-          <label class="form-label" for="leetcodeUsername">LeetCode Username</label>
-          <input
-            class="form-input"
-            id="leetcodeUsername"
-            name="leetcodeUsername"
-            required
-            maxlength="50"
-            pattern="[A-Za-z0-9_-]+"
-            placeholder="leetcode_username"
-          >
-
-          <div class="generated-link" id="generatedLink">
-            https://leetcode.com/u/username/
-          </div>
-
-          <p id="formMessage" class="form-message" aria-live="polite"></p>
-
-          <div class="modal-actions">
-            <button type="button" class="action-button secondary" data-close-modal>
-              Cancel
-            </button>
-            <button id="saveProfileButton" type="submit" class="action-button primary">
-              Add User
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-
-    <!-- =====================================================
-         DELETE CONFIRMATION
-         ===================================================== -->
-    <div id="deleteModal" class="profile-modal" hidden>
-      <div class="profile-modal-backdrop" data-close-delete></div>
-
-      <section
-        class="profile-modal-card delete-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="deleteModalTitle"
-      >
-        <div class="profile-modal-head">
-          <div>
-            <div class="eyebrow danger-eyebrow">ADMIN ACTION</div>
-            <h2 id="deleteModalTitle">Delete Profile?</h2>
-          </div>
-        </div>
-
-        <p id="deleteDescription" class="modal-help">
-          This removes the student from the managed profile list.
-        </p>
-
-        <p id="deleteMessage" class="form-message" aria-live="polite"></p>
+        <p id="adminLoginMessage" class="form-message" aria-live="polite"></p>
 
         <div class="modal-actions">
-          <button id="cancelDeleteButton" type="button" class="action-button secondary">
+          <button
+            type="button"
+            class="action-button secondary"
+            data-close-admin-login
+          >
             Cancel
           </button>
-          <button id="confirmDeleteButton" type="button" class="action-button danger-button">
-            Delete Profile
+
+          <button
+            id="adminSignInButton"
+            class="action-button primary"
+            type="submit"
+          >
+            Login
           </button>
         </div>
-      </section>
-    </div>
-
-    <footer>Supabase Auth + RLS · GitHub Actions · GitHub Pages</footer>
+      </form>
+    </section>
   </div>
+
+  <!-- =======================================================
+       ADD / EDIT PROFILE
+       ======================================================= -->
+  <div id="profileModal" class="profile-modal" hidden>
+    <div class="profile-modal-backdrop" data-close-profile></div>
+
+    <section
+      class="profile-modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profileModalTitle"
+    >
+      <div class="profile-modal-head">
+        <div>
+          <div class="eyebrow">ADMIN PROFILE MANAGEMENT</div>
+          <h2 id="profileModalTitle">Add LeetCode Profile</h2>
+        </div>
+
+        <button
+          id="closeProfileModal"
+          class="modal-close"
+          type="button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+
+      <p class="modal-help">
+        Register number and LeetCode username must be unique.
+      </p>
+
+      <form id="profileForm">
+        <input id="editingStudentId" type="hidden">
+
+        <label class="form-label" for="registerNumber">Register Number</label>
+        <input
+          class="form-input"
+          id="registerNumber"
+          required
+          maxlength="50"
+          placeholder="922525106264"
+        >
+
+        <label class="form-label" for="studentName">Student Name</label>
+        <input
+          class="form-input"
+          id="studentName"
+          required
+          maxlength="100"
+          placeholder="Student name"
+        >
+
+        <label class="form-label" for="leetcodeUsername">LeetCode Username</label>
+        <input
+          class="form-input"
+          id="leetcodeUsername"
+          required
+          maxlength="50"
+          pattern="[A-Za-z0-9_-]+"
+          placeholder="leetcode_username"
+        >
+
+        <div class="generated-link" id="generatedLink">
+          https://leetcode.com/u/username/
+        </div>
+
+        <p id="formMessage" class="form-message" aria-live="polite"></p>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="action-button secondary"
+            data-close-profile
+          >
+            Cancel
+          </button>
+
+          <button
+            id="saveProfileButton"
+            type="submit"
+            class="action-button primary"
+          >
+            Add User
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <!-- =======================================================
+       MANAGE STUDENTS
+       ======================================================= -->
+  <div id="manageStudentsModal" class="profile-modal" hidden>
+    <div class="profile-modal-backdrop" data-close-manage></div>
+
+    <section
+      class="profile-modal-card manage-modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="manageStudentsTitle"
+    >
+      <div class="profile-modal-head">
+        <div>
+          <div class="eyebrow">ADMIN</div>
+          <h2 id="manageStudentsTitle">Manage Students</h2>
+        </div>
+
+        <button
+          id="closeManageStudents"
+          class="modal-close"
+          type="button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+
+      <div class="manage-toolbar">
+        <input
+          id="manageSearch"
+          class="form-input"
+          type="search"
+          placeholder="Search by name, register number or username"
+          autocomplete="off"
+        >
+
+        <span id="manageCount" class="manage-count">0 students</span>
+      </div>
+
+      <div class="manage-table-wrap">
+        <table class="manage-table">
+          <thead>
+            <tr>
+              <th>Register No</th>
+              <th>Student</th>
+              <th>LeetCode</th>
+              <th>Manage</th>
+            </tr>
+          </thead>
+
+          <tbody id="manageStudentsBody">
+            <tr>
+              <td colspan="4" class="loading-row">Loading students...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- =======================================================
+       DELETE CONFIRMATION
+       ======================================================= -->
+  <div id="deleteModal" class="profile-modal" hidden>
+    <div class="profile-modal-backdrop" data-close-delete></div>
+
+    <section
+      class="profile-modal-card delete-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deleteModalTitle"
+    >
+      <div class="profile-modal-head">
+        <div>
+          <div class="eyebrow danger-eyebrow">ADMIN ACTION</div>
+          <h2 id="deleteModalTitle">Delete Profile?</h2>
+        </div>
+      </div>
+
+      <p id="deleteDescription" class="modal-help">
+        This removes the student from the managed profile list.
+      </p>
+
+      <p id="deleteMessage" class="form-message" aria-live="polite"></p>
+
+      <div class="modal-actions">
+        <button
+          id="cancelDeleteButton"
+          type="button"
+          class="action-button secondary"
+        >
+          Cancel
+        </button>
+
+        <button
+          id="confirmDeleteButton"
+          type="button"
+          class="action-button danger-button"
+        >
+          Delete Profile
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    Public leaderboard · Admin operations protected by Supabase Auth + RLS
+  </footer>
 
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

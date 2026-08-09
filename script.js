@@ -2,41 +2,52 @@ let supabaseClient = null;
 let currentUser = null;
 let currentRole = null;
 
-let directoryStudents = [];
 let allStudents = [];
 let visibleStudents = [];
-
+let directoryStudents = [];
 let pendingDeleteId = null;
 
 const cfg = window.APP_CONFIG || {};
-
-const loginView = document.getElementById("loginView");
-const appView = document.getElementById("appView");
-const loginForm = document.getElementById("loginForm");
-const loginEmail = document.getElementById("loginEmail");
-const loginPassword = document.getElementById("loginPassword");
-const loginButton = document.getElementById("loginButton");
-const loginMessage = document.getElementById("loginMessage");
-const togglePasswordButton = document.getElementById("togglePasswordButton");
-
-const sessionEmail = document.getElementById("sessionEmail");
-const roleBadge = document.getElementById("roleBadge");
-const accessNote = document.getElementById("accessNote");
-const logoutButton = document.getElementById("logoutButton");
 
 const tableBody = document.getElementById("studentTableBody");
 const messageElement = document.getElementById("message");
 const searchInput = document.getElementById("searchInput");
 
-const profileModal = document.getElementById("profileModal");
+const adminLoginButton = document.getElementById("adminLoginButton");
+const adminLogoutButton = document.getElementById("adminLogoutButton");
+const adminSessionCard = document.getElementById("adminSessionCard");
+const sessionEmail = document.getElementById("sessionEmail");
+const accessNote = document.getElementById("accessNote");
+
+const adminLoginModal = document.getElementById("adminLoginModal");
+const adminLoginForm = document.getElementById("adminLoginForm");
+const adminEmail = document.getElementById("adminEmail");
+const adminPassword = document.getElementById("adminPassword");
+const adminSignInButton = document.getElementById("adminSignInButton");
+const adminLoginMessage = document.getElementById("adminLoginMessage");
+const closeAdminLogin = document.getElementById("closeAdminLogin");
+const toggleAdminPassword = document.getElementById("toggleAdminPassword");
+
 const addProfileButton = document.getElementById("addProfileButton");
-const closeProfileModal = document.getElementById("closeProfileModal");
+const syncNowButton = document.getElementById("syncNowButton");
+const manageStudentsButton = document.getElementById("manageStudentsButton");
+
+const profileModal = document.getElementById("profileModal");
 const profileForm = document.getElementById("profileForm");
-const formMessage = document.getElementById("formMessage");
+const closeProfileModal = document.getElementById("closeProfileModal");
+const editingStudentId = document.getElementById("editingStudentId");
+const registerNumberInput = document.getElementById("registerNumber");
+const studentNameInput = document.getElementById("studentName");
 const usernameInput = document.getElementById("leetcodeUsername");
 const generatedLink = document.getElementById("generatedLink");
+const formMessage = document.getElementById("formMessage");
 const saveProfileButton = document.getElementById("saveProfileButton");
-const editingStudentId = document.getElementById("editingStudentId");
+
+const manageStudentsModal = document.getElementById("manageStudentsModal");
+const closeManageStudents = document.getElementById("closeManageStudents");
+const manageStudentsBody = document.getElementById("manageStudentsBody");
+const manageSearch = document.getElementById("manageSearch");
+const manageCount = document.getElementById("manageCount");
 
 const deleteModal = document.getElementById("deleteModal");
 const deleteDescription = document.getElementById("deleteDescription");
@@ -78,7 +89,7 @@ function configured() {
 function createClient() {
   if (!configured()) {
     throw new Error(
-      "Supabase is not configured. Add your Project URL and publishable key to config.js."
+      "Supabase is not configured. Put your Project URL and publishable key in config.js."
     );
   }
 
@@ -97,6 +108,30 @@ function createClient() {
       }
     }
   );
+}
+
+
+function isAdmin() {
+  return currentRole === "admin";
+}
+
+
+function updateAdminUI() {
+  document.querySelectorAll(".admin-only").forEach((element) => {
+    element.hidden = !isAdmin();
+  });
+
+  adminLoginButton.hidden = isAdmin();
+  adminSessionCard.hidden = !isAdmin();
+
+  if (isAdmin()) {
+    sessionEmail.textContent = currentUser?.email || "Administrator";
+    accessNote.textContent =
+      "Admin Mode · Add, Sync and Manage Students enabled.";
+  } else {
+    accessNote.textContent =
+      "Public view · No login required";
+  }
 }
 
 
@@ -186,250 +221,25 @@ function rankClass(rank) {
 }
 
 
-function isAdmin() {
-  return currentRole === "admin";
-}
-
-
-function showLogin(message = "") {
-  currentUser = null;
-  currentRole = null;
-  appView.hidden = true;
-  loginView.hidden = false;
-
-  loginMessage.textContent = message;
-  loginMessage.className = message
-    ? "form-message error"
-    : "form-message";
-}
-
-
-function showApp() {
-  loginView.hidden = true;
-  appView.hidden = false;
-
-  sessionEmail.textContent = currentUser?.email || "Signed in";
-
-  if (isAdmin()) {
-    roleBadge.textContent = "Administrator";
-    roleBadge.className = "role-badge role-admin";
-    accessNote.textContent =
-      "Administrator access · Add, edit and delete profiles enabled.";
-  } else {
-    roleBadge.textContent = "Public Viewer";
-    roleBadge.className = "role-badge role-public";
-    accessNote.textContent =
-      "Public access · View, search and download only.";
-  }
-
-  document.querySelectorAll(".admin-only").forEach((element) => {
-    element.hidden = !isAdmin();
-  });
-}
-
-
-async function fetchMyRole() {
-  const { data, error } = await supabaseClient
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", currentUser.id)
-    .single();
-
-  if (error) {
-    throw new Error(
-      "Your account does not have an assigned application role."
-    );
-  }
-
-  if (!["admin", "public"].includes(data?.role)) {
-    throw new Error("Invalid application role.");
-  }
-
-  return data.role;
-}
-
-
-async function enterApp(user) {
-  currentUser = user;
-  currentRole = await fetchMyRole();
-  showApp();
-  await loadData();
-}
-
-
-async function handleLogin(event) {
-  event.preventDefault();
-
-  loginButton.disabled = true;
-  loginButton.textContent = "Signing in...";
-  loginMessage.textContent = "Checking account...";
-  loginMessage.className = "form-message";
-
-  try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email: loginEmail.value.trim(),
-      password: loginPassword.value
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data.user) {
-      throw new Error("Unable to load your account.");
-    }
-
-    await enterApp(data.user);
-
-    loginMessage.textContent = "";
-    loginPassword.value = "";
-  } catch (error) {
-    await supabaseClient.auth.signOut().catch(() => {});
-    showLogin(error.message || "Login failed.");
-  } finally {
-    loginButton.disabled = false;
-    loginButton.textContent = "Sign In";
-  }
-}
-
-
-async function logout() {
-  logoutButton.disabled = true;
-
-  try {
-    await supabaseClient.auth.signOut();
-  } finally {
-    logoutButton.disabled = false;
-    searchInput.value = "";
-    directoryStudents = [];
-    allStudents = [];
-    visibleStudents = [];
-    showLogin();
-  }
-}
-
-
-async function restoreSession() {
-  const {
-    data: { session },
-    error
-  } = await supabaseClient.auth.getSession();
-
-  if (error || !session?.user) {
-    showLogin();
-    return;
-  }
-
-  try {
-    await enterApp(session.user);
-  } catch (roleError) {
-    await supabaseClient.auth.signOut();
-    showLogin(roleError.message);
-  }
-}
-
-
-async function fetchRegisteredStudents() {
-  const { data, error } = await supabaseClient
-    .from("students")
-    .select(
-      "id,register_number,student_name,leetcode_username,created_at"
-    )
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    throw new Error(`Student directory: ${error.message}`);
-  }
-
-  return data || [];
-}
-
-
-function makePendingRow(student, liveRow = null) {
-  const username = student.leetcode_username;
-
-  return {
-    Rank: liveRow?.Rank || "",
-    "Register Number": student.register_number,
-    "Student Name": student.student_name,
-    "LeetCode Username": username,
-    "LeetCode Link":
-      `https://leetcode.com/u/${encodeURIComponent(username)}/`,
-    "Last 30 Days": "",
-    "Last 7 Days": "",
-    "Solved Today": "",
-    "Problems Solved": "",
-    "Total Submissions": "",
-    Easy: "",
-    Medium: "",
-    Hard: "",
-    "Last Problem": "",
-    "Last Solved": "",
-    Status: "Pending",
-    "Updated At": "",
-    __id: student.id
-  };
-}
-
-
-function mergeLiveWithDirectory(live, registered) {
-  const liveByRegister = new Map(
-    live.map((row) => [
-      String(row["Register Number"] || "").trim(),
-      row
-    ])
-  );
-
-  return registered.map((student) => {
-    const registerNumber = String(student.register_number || "").trim();
-    const liveRow = liveByRegister.get(registerNumber);
-
-    if (!liveRow) {
-      return makePendingRow(student);
-    }
-
-    const sameUsername =
-      String(liveRow["LeetCode Username"] || "").toLowerCase()
-      === String(student.leetcode_username || "").toLowerCase();
-
-    if (!sameUsername) {
-      return makePendingRow(student, liveRow);
-    }
-
-    return {
-      ...liveRow,
-      "Register Number": student.register_number,
-      "Student Name": student.student_name,
-      "LeetCode Username": student.leetcode_username,
-      "LeetCode Link":
-        `https://leetcode.com/u/${encodeURIComponent(student.leetcode_username)}/`,
-      __id: student.id
-    };
-  });
-}
-
-
 function updateLastUpdated(students) {
-  const updated = students
+  const updatedAt = students
     .map((student) => student["Updated At"])
-    .filter(Boolean)[0]
-    || "Waiting for cloud tracker";
+    .find(Boolean)
+    || "Waiting for tracker";
 
-  document.getElementById("lastUpdated").textContent = updated;
+  document.getElementById("lastUpdated").textContent = updatedAt;
   document.getElementById("printUpdatedAt").textContent =
-    `Last updated: ${updated}`;
+    `Last updated: ${updatedAt}`;
 }
 
 
 function renderStudents(students) {
   visibleStudents = students;
 
-  const columnCount = isAdmin() ? 14 : 13;
-
   if (!students.length) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="${columnCount}" class="loading-row">
+        <td colspan="13" class="loading-row">
           No matching students found.
         </td>
       </tr>
@@ -438,7 +248,7 @@ function renderStudents(students) {
   }
 
   tableBody.innerHTML = students.map((student, index) => {
-    const status = student.Status || "Pending";
+    const status = student.Status || "";
     const statusClass =
       status === "Success"
         ? "status-success"
@@ -446,36 +256,8 @@ function renderStudents(students) {
           ? "status-pending"
           : "status-error";
 
-    const adminActions = isAdmin()
-      ? `
-        <td class="admin-actions-cell">
-          <div class="row-actions">
-            <button
-              type="button"
-              class="row-action edit-action"
-              data-action="edit"
-              data-student-id="${escapeHTML(student.__id)}"
-              title="Edit profile"
-            >
-              Edit
-            </button>
-
-            <button
-              type="button"
-              class="row-action delete-action"
-              data-action="delete"
-              data-student-id="${escapeHTML(student.__id)}"
-              title="Delete profile"
-            >
-              Delete
-            </button>
-          </div>
-        </td>
-      `
-      : "";
-
     return `
-      <tr style="animation-delay:${Math.min(index * 35, 420)}ms">
+      <tr style="animation-delay:${Math.min(index * 30, 360)}ms">
         <td>
           <span class="rank-badge ${rankClass(student.Rank)}">
             ${escapeHTML(student.Rank || "–")}
@@ -486,6 +268,7 @@ function renderStudents(students) {
           <span class="student-name">
             ${escapeHTML(student["Student Name"])}
           </span>
+
           <span class="register-number">
             ${escapeHTML(student["Register Number"])}
           </span>
@@ -519,49 +302,12 @@ function renderStudents(students) {
 
         <td>
           <span class="status ${statusClass}">
-            ${escapeHTML(status)}
+            ${escapeHTML(status || "Unknown")}
           </span>
         </td>
-
-        ${adminActions}
       </tr>
     `;
   }).join("");
-}
-
-
-async function loadData() {
-  if (!currentUser) {
-    return;
-  }
-
-  try {
-    const [csvResponse, registered] = await Promise.all([
-      fetch(`LiveData.csv?time=${Date.now()}`, {
-        cache: "no-store"
-      }),
-      fetchRegisteredStudents()
-    ]);
-
-    if (!csvResponse.ok) {
-      throw new Error(`LiveData.csv HTTP ${csvResponse.status}`);
-    }
-
-    const live = parseCSV(await csvResponse.text());
-
-    directoryStudents = registered;
-    allStudents = mergeLiveWithDirectory(live, registered);
-
-    updateLastUpdated(live);
-    applySearch();
-
-    messageElement.textContent =
-      `${registered.length} managed profile(s) · auto-refreshing`;
-  } catch (error) {
-    console.error(error);
-    messageElement.textContent =
-      `Unable to load dashboard: ${error.message}`;
-  }
 }
 
 
@@ -578,10 +324,316 @@ function applySearch() {
       [
         student["Student Name"],
         student["Register Number"],
-        student["LeetCode Username"]
+        student["LeetCode Username"],
+        student["Last Problem"]
       ].some((value) =>
         String(value || "").toLowerCase().includes(query)
       )
+    )
+  );
+}
+
+
+async function loadData() {
+  try {
+    const response = await fetch(
+      `LiveData.csv?time=${Date.now()}`,
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+      throw new Error(`LiveData.csv HTTP ${response.status}`);
+    }
+
+    allStudents = parseCSV(await response.text());
+
+    updateLastUpdated(allStudents);
+    applySearch();
+
+    messageElement.textContent =
+      `${allStudents.length} student profile(s) · leaderboard auto-refreshes`;
+  } catch (error) {
+    console.error(error);
+
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="13" class="loading-row">
+          Unable to load leaderboard.
+        </td>
+      </tr>
+    `;
+
+    messageElement.textContent =
+      `Unable to load dashboard: ${error.message}`;
+  }
+}
+
+
+async function fetchAdminRole(user) {
+  const { data, error } = await supabaseClient
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error) {
+    throw new Error(
+      "This account does not have an application role."
+    );
+  }
+
+  if (data?.role !== "admin") {
+    throw new Error(
+      "This account is not authorized as an administrator."
+    );
+  }
+
+  return "admin";
+}
+
+
+function openAdminLogin() {
+  adminLoginMessage.textContent = "";
+  adminLoginMessage.className = "form-message";
+  adminLoginModal.hidden = false;
+
+  setTimeout(() => adminEmail.focus(), 0);
+}
+
+
+function closeAdminLoginModal() {
+  adminLoginModal.hidden = true;
+}
+
+
+async function handleAdminLogin(event) {
+  event.preventDefault();
+
+  adminSignInButton.disabled = true;
+  adminSignInButton.textContent = "Checking...";
+  adminLoginMessage.textContent = "Authenticating administrator...";
+  adminLoginMessage.className = "form-message";
+
+  try {
+    const { data, error } =
+      await supabaseClient.auth.signInWithPassword({
+        email: adminEmail.value.trim(),
+        password: adminPassword.value
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data.user) {
+      throw new Error("Unable to load account.");
+    }
+
+    const role = await fetchAdminRole(data.user);
+
+    currentUser = data.user;
+    currentRole = role;
+
+    adminPassword.value = "";
+    closeAdminLoginModal();
+    updateAdminUI();
+
+    messageElement.textContent =
+      "Administrator mode enabled.";
+  } catch (error) {
+    await supabaseClient.auth.signOut().catch(() => {});
+
+    currentUser = null;
+    currentRole = null;
+    updateAdminUI();
+
+    adminLoginMessage.textContent =
+      error.message || "Admin login failed.";
+    adminLoginMessage.className = "form-message error";
+  } finally {
+    adminSignInButton.disabled = false;
+    adminSignInButton.textContent = "Login";
+  }
+}
+
+
+async function restoreAdminSession() {
+  const {
+    data: { session },
+    error
+  } = await supabaseClient.auth.getSession();
+
+  if (error || !session?.user) {
+    updateAdminUI();
+    return;
+  }
+
+  try {
+    const role = await fetchAdminRole(session.user);
+
+    currentUser = session.user;
+    currentRole = role;
+  } catch (error) {
+    await supabaseClient.auth.signOut();
+    currentUser = null;
+    currentRole = null;
+  }
+
+  updateAdminUI();
+}
+
+
+async function adminLogout() {
+  await supabaseClient.auth.signOut();
+
+  currentUser = null;
+  currentRole = null;
+  directoryStudents = [];
+
+  manageStudentsModal.hidden = true;
+  profileModal.hidden = true;
+
+  updateAdminUI();
+
+  messageElement.textContent =
+    "Admin logged out. Public leaderboard remains available.";
+}
+
+
+async function loadRegisteredStudents() {
+  if (!isAdmin()) {
+    throw new Error("Administrator access required.");
+  }
+
+  const { data, error } = await supabaseClient
+    .from("students")
+    .select(
+      "id,register_number,student_name,leetcode_username,created_at"
+    )
+    .order("student_name", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  directoryStudents = data || [];
+  return directoryStudents;
+}
+
+
+function renderManageStudents(students) {
+  manageCount.textContent =
+    `${students.length} student${students.length === 1 ? "" : "s"}`;
+
+  if (!students.length) {
+    manageStudentsBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="loading-row">
+          No students found.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  manageStudentsBody.innerHTML = students.map((student) => `
+    <tr>
+      <td class="numeric">
+        ${escapeHTML(student.register_number)}
+      </td>
+
+      <td>
+        <span class="student-name">
+          ${escapeHTML(student.student_name)}
+        </span>
+      </td>
+
+      <td>
+        <a
+          class="profile-link"
+          href="https://leetcode.com/u/${encodeURIComponent(student.leetcode_username)}/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          ${escapeHTML(student.leetcode_username)}
+        </a>
+      </td>
+
+      <td>
+        <button
+          class="row-action edit-action"
+          type="button"
+          data-manage-edit="${escapeHTML(student.id)}"
+        >
+          Edit
+        </button>
+
+        <button
+          class="row-action delete-action"
+          type="button"
+          data-manage-delete="${escapeHTML(student.id)}"
+        >
+          Delete
+        </button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+
+async function openManageStudents() {
+  if (!isAdmin()) {
+    return;
+  }
+
+  manageStudentsModal.hidden = false;
+  manageStudentsBody.innerHTML = `
+    <tr>
+      <td colspan="4" class="loading-row">
+        Loading students...
+      </td>
+    </tr>
+  `;
+
+  try {
+    const students = await loadRegisteredStudents();
+    manageSearch.value = "";
+    renderManageStudents(students);
+  } catch (error) {
+    manageStudentsBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="loading-row">
+          ${escapeHTML(error.message)}
+        </td>
+      </tr>
+    `;
+  }
+}
+
+
+function closeManageStudentsModal() {
+  manageStudentsModal.hidden = true;
+}
+
+
+function filterManageStudents() {
+  const query = manageSearch.value.trim().toLowerCase();
+
+  if (!query) {
+    renderManageStudents(directoryStudents);
+    return;
+  }
+
+  renderManageStudents(
+    directoryStudents.filter((student) =>
+      [
+        student.register_number,
+        student.student_name,
+        student.leetcode_username
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
     )
   );
 }
@@ -602,12 +654,14 @@ function openAddModal() {
   }
 
   resetProfileForm();
+
   document.getElementById("profileModalTitle").textContent =
     "Add LeetCode Profile";
-  saveProfileButton.textContent = "Add User";
 
+  saveProfileButton.textContent = "Add User";
   profileModal.hidden = false;
-  document.getElementById("registerNumber").focus();
+
+  setTimeout(() => registerNumberInput.focus(), 0);
 }
 
 
@@ -622,30 +676,31 @@ function openEditModal(studentId) {
 
   if (!student) {
     messageElement.textContent =
-      "Unable to find that student in the current directory.";
+      "Unable to find that student.";
     return;
   }
 
   resetProfileForm();
 
   editingStudentId.value = student.id;
-  document.getElementById("registerNumber").value =
-    student.register_number;
-  document.getElementById("studentName").value =
-    student.student_name;
+  registerNumberInput.value = student.register_number;
+  studentNameInput.value = student.student_name;
   usernameInput.value = student.leetcode_username;
+
   generatedLink.textContent =
     `https://leetcode.com/u/${student.leetcode_username}/`;
 
   document.getElementById("profileModalTitle").textContent =
     "Edit LeetCode Profile";
+
   saveProfileButton.textContent = "Save Changes";
 
+  manageStudentsModal.hidden = true;
   profileModal.hidden = false;
 }
 
 
-function hideProfileModal() {
+function closeProfile() {
   profileModal.hidden = true;
 }
 
@@ -660,10 +715,13 @@ async function saveProfile(event) {
   }
 
   const id = editingStudentId.value.trim();
+
   const register_number =
-    document.getElementById("registerNumber").value.trim();
+    registerNumberInput.value.trim();
+
   const student_name =
-    document.getElementById("studentName").value.trim();
+    studentNameInput.value.trim();
+
   const leetcode_username =
     usernameInput.value.trim();
 
@@ -676,9 +734,6 @@ async function saveProfile(event) {
 
   saveProfileButton.disabled = true;
   saveProfileButton.textContent = id ? "Saving..." : "Adding...";
-  formMessage.textContent =
-    id ? "Updating profile..." : "Adding profile...";
-  formMessage.className = "form-message";
 
   try {
     let result;
@@ -717,20 +772,25 @@ async function saveProfile(event) {
     }
 
     formMessage.textContent = id
-      ? "Profile updated. Cloud LeetCode refresh has been triggered."
-      : "Profile added. Cloud LeetCode refresh has been triggered.";
+      ? "Profile updated successfully."
+      : "Profile added successfully.";
 
     formMessage.className = "form-message success";
 
     await loadData();
 
-    setTimeout(hideProfileModal, 900);
+    setTimeout(() => {
+      closeProfile();
+    }, 700);
   } catch (error) {
-    formMessage.textContent = error.message || "Unable to save profile.";
+    formMessage.textContent =
+      error.message || "Unable to save profile.";
+
     formMessage.className = "form-message error";
   } finally {
     saveProfileButton.disabled = false;
-    saveProfileButton.textContent = id ? "Save Changes" : "Add User";
+    saveProfileButton.textContent =
+      id ? "Save Changes" : "Add User";
   }
 }
 
@@ -749,18 +809,18 @@ function openDeleteModal(studentId) {
   }
 
   pendingDeleteId = student.id;
-  deleteMessage.textContent = "";
-  deleteMessage.className = "form-message";
 
   deleteDescription.textContent =
-    `Delete ${student.student_name} (${student.leetcode_username})? `
-    + "The cloud tracker will regenerate the leaderboard after deletion.";
+    `Delete ${student.student_name} (${student.leetcode_username})?`;
+
+  deleteMessage.textContent = "";
+  deleteMessage.className = "form-message";
 
   deleteModal.hidden = false;
 }
 
 
-function closeDeleteModal() {
+function closeDelete() {
   deleteModal.hidden = true;
   pendingDeleteId = null;
 }
@@ -773,7 +833,6 @@ async function confirmDelete() {
 
   confirmDeleteButton.disabled = true;
   confirmDeleteButton.textContent = "Deleting...";
-  deleteMessage.textContent = "Removing profile...";
 
   try {
     const { error } = await supabaseClient
@@ -785,14 +844,18 @@ async function confirmDelete() {
       throw error;
     }
 
-    closeDeleteModal();
+    closeDelete();
+
+    await loadRegisteredStudents();
+    renderManageStudents(directoryStudents);
     await loadData();
 
     messageElement.textContent =
-      "Profile deleted. Cloud leaderboard refresh has been triggered.";
+      "Profile deleted successfully.";
   } catch (error) {
     deleteMessage.textContent =
       error.message || "Unable to delete profile.";
+
     deleteMessage.className = "form-message error";
   } finally {
     confirmDeleteButton.disabled = false;
@@ -801,22 +864,46 @@ async function confirmDelete() {
 }
 
 
-function handleTableAction(event) {
-  const button = event.target.closest("[data-action]");
-
-  if (!button || !isAdmin()) {
+async function triggerLeetCodeSync() {
+  if (!isAdmin()) {
     return;
   }
 
-  const studentId = button.dataset.studentId;
-  const action = button.dataset.action;
+  syncNowButton.disabled = true;
+  syncNowButton.textContent = "Syncing...";
 
-  if (action === "edit") {
-    openEditModal(studentId);
-  }
+  messageElement.textContent =
+    "Starting cloud LeetCode sync...";
 
-  if (action === "delete") {
-    openDeleteModal(studentId);
+  try {
+    const { data, error } =
+      await supabaseClient.functions.invoke(
+        "super-action",
+        {
+          body: {
+            source: "admin-sync-button"
+          }
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    messageElement.textContent =
+      "LeetCode sync started. GitHub Actions is checking all profiles.";
+
+    console.log("Sync response:", data);
+  } catch (error) {
+    console.error(error);
+
+    messageElement.textContent =
+      `Unable to start LeetCode sync: ${error.message}`;
+  } finally {
+    setTimeout(() => {
+      syncNowButton.disabled = false;
+      syncNowButton.textContent = "↻ Sync Now";
+    }, 4000);
   }
 }
 
@@ -830,54 +917,44 @@ function csvEscape(value) {
 }
 
 
-function exportRows() {
-  return visibleStudents.map(
-    (student) =>
-      exportColumns.map(
-        (column) => student[column] ?? ""
-      )
+function downloadCSV() {
+  if (!visibleStudents.length) {
+    return;
+  }
+
+  const rows = [
+    exportColumns,
+    ...visibleStudents.map(
+      (student) =>
+        exportColumns.map(
+          (column) => student[column] ?? ""
+        )
+    )
+  ];
+
+  const blob = new Blob(
+    [
+      "\uFEFF"
+      + rows
+        .map((row) => row.map(csvEscape).join(","))
+        .join("\r\n")
+    ],
+    {
+      type: "text/csv;charset=utf-8"
+    }
   );
-}
 
-
-function downloadBlob(content, type, name) {
-  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
-  link.href = URL.createObjectURL(blob);
-  link.download = name;
+  link.href = url;
+  link.download = "LeetCode_Leaderboard.csv";
 
   document.body.appendChild(link);
   link.click();
   link.remove();
 
-  setTimeout(
-    () => URL.revokeObjectURL(link.href),
-    1000
-  );
-}
-
-
-function downloadCSV() {
-  const rows = [
-    exportColumns,
-    ...exportRows()
-  ];
-
-  downloadBlob(
-    "\uFEFF"
-      + rows
-        .map((row) => row.map(csvEscape).join(","))
-        .join("\r\n"),
-    "text/csv;charset=utf-8",
-    "LeetCode_Leaderboard.csv"
-  );
-}
-
-
-function downloadExcel() {
-  window.location.href =
-    `Students.xlsx?time=${Date.now()}`;
+  URL.revokeObjectURL(url);
 }
 
 
@@ -889,139 +966,133 @@ function downloadPDF() {
 async function initialize() {
   try {
     createClient();
-    await restoreSession();
+
+    // The public leaderboard loads immediately without authentication.
+    await loadData();
+
+    // If an admin session already exists, restore Admin Mode.
+    await restoreAdminSession();
+
+    updateAdminUI();
   } catch (error) {
-    showLogin(error.message);
+    console.error(error);
+    messageElement.textContent = error.message;
   }
 }
-async function triggerLeetCodeSync() {
 
-    const button =
-        document.getElementById("syncNowButton");
-
-    button.disabled = true;
-    button.textContent = "⏳ Syncing...";
-
-    try {
-
-        const { data, error } =
-            await supabaseClient.functions.invoke(
-                "super-action",
-                {
-                    body: {
-                        source: "admin-sync-button"
-                    }
-                }
-            );
-
-        if (error) {
-            throw error;
-        }
-
-        console.log("GitHub Action triggered:", data);
-
-        alert(
-            "✅ LeetCode update started!\n\n" +
-            "GitHub Actions is checking all students."
-        );
-
-    } catch (error) {
-
-        console.error(error);
-
-        alert(
-            "❌ Unable to start LeetCode update.\n" +
-            error.message
-        );
-
-    } finally {
-
-        button.disabled = false;
-        button.textContent = "🔄 Sync LeetCode Now";
-    }
-}
-
-
-loginForm.addEventListener("submit", handleLogin);
-
-togglePasswordButton.addEventListener("click", () => {
-  const showing = loginPassword.type === "text";
-
-  loginPassword.type = showing ? "password" : "text";
-  togglePasswordButton.textContent = showing ? "Show" : "Hide";
-  togglePasswordButton.setAttribute(
-    "aria-label",
-    showing ? "Show password" : "Hide password"
-  );
-});
-
-logoutButton.addEventListener("click", logout);
 
 searchInput.addEventListener("input", applySearch);
-
-addProfileButton.addEventListener("click", openAddModal);
-closeProfileModal.addEventListener("click", hideProfileModal);
-
-profileModal
-  .querySelectorAll("[data-close-modal]")
-  .forEach((element) =>
-    element.addEventListener("click", hideProfileModal)
-  );
-
-profileForm.addEventListener("submit", saveProfile);
-
-usernameInput.addEventListener("input", () => {
-  const username = usernameInput.value.trim();
-
-  generatedLink.textContent =
-    `https://leetcode.com/u/${username || "username"}/`;
-});
-
-tableBody.addEventListener("click", handleTableAction);
-
-cancelDeleteButton.addEventListener("click", closeDeleteModal);
-
-deleteModal
-  .querySelectorAll("[data-close-delete]")
-  .forEach((element) =>
-    element.addEventListener("click", closeDeleteModal)
-  );
-
-confirmDeleteButton.addEventListener("click", confirmDelete);
 
 document
   .getElementById("downloadCsvButton")
   .addEventListener("click", downloadCSV);
 
 document
-  .getElementById("downloadExcelButton")
-  .addEventListener("click", downloadExcel);
-
-document
   .getElementById("downloadPdfButton")
   .addEventListener("click", downloadPDF);
+
+adminLoginButton.addEventListener("click", openAdminLogin);
+adminLoginForm.addEventListener("submit", handleAdminLogin);
+adminLogoutButton.addEventListener("click", adminLogout);
+
+closeAdminLogin.addEventListener("click", closeAdminLoginModal);
+
+adminLoginModal
+  .querySelectorAll("[data-close-admin-login]")
+  .forEach((element) =>
+    element.addEventListener("click", closeAdminLoginModal)
+  );
+
+toggleAdminPassword.addEventListener("click", () => {
+  const visible = adminPassword.type === "text";
+
+  adminPassword.type = visible ? "password" : "text";
+  toggleAdminPassword.textContent = visible ? "Show" : "Hide";
+});
+
+addProfileButton.addEventListener("click", openAddModal);
+syncNowButton.addEventListener("click", triggerLeetCodeSync);
+manageStudentsButton.addEventListener("click", openManageStudents);
+
+closeManageStudents.addEventListener("click", closeManageStudentsModal);
+
+manageStudentsModal
+  .querySelectorAll("[data-close-manage]")
+  .forEach((element) =>
+    element.addEventListener("click", closeManageStudentsModal)
+  );
+
+manageSearch.addEventListener("input", filterManageStudents);
+
+manageStudentsBody.addEventListener("click", (event) => {
+  const editButton =
+    event.target.closest("[data-manage-edit]");
+
+  if (editButton) {
+    openEditModal(editButton.dataset.manageEdit);
+    return;
+  }
+
+  const deleteButton =
+    event.target.closest("[data-manage-delete]");
+
+  if (deleteButton) {
+    openDeleteModal(deleteButton.dataset.manageDelete);
+  }
+});
+
+closeProfileModal.addEventListener("click", closeProfile);
+
+profileModal
+  .querySelectorAll("[data-close-profile]")
+  .forEach((element) =>
+    element.addEventListener("click", closeProfile)
+  );
+
+profileForm.addEventListener("submit", saveProfile);
+
+usernameInput.addEventListener("input", () => {
+  generatedLink.textContent =
+    `https://leetcode.com/u/${usernameInput.value.trim() || "username"}/`;
+});
+
+cancelDeleteButton.addEventListener("click", closeDelete);
+
+deleteModal
+  .querySelectorAll("[data-close-delete]")
+  .forEach((element) =>
+    element.addEventListener("click", closeDelete)
+  );
+
+confirmDeleteButton.addEventListener("click", confirmDelete);
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") {
     return;
   }
 
+  if (!adminLoginModal.hidden) {
+    closeAdminLoginModal();
+  }
+
   if (!profileModal.hidden) {
-    hideProfileModal();
+    closeProfile();
+  }
+
+  if (!manageStudentsModal.hidden) {
+    closeManageStudentsModal();
   }
 
   if (!deleteModal.hidden) {
-    closeDeleteModal();
+    closeDelete();
   }
 });
 
 initialize();
 
+// Public data refresh only. This does NOT trigger GitHub Actions.
 setInterval(() => {
-  if (currentUser && !document.hidden) {
+  if (!document.hidden) {
     loadData();
   }
 }, 30000);
-document
-    .getElementById("syncNowButton")
-    .addEventListener("click", triggerLeetCodeSync);
