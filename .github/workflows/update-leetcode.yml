@@ -1,11 +1,15 @@
 name: Update LeetCode Leaderboard
 
 on:
+  # Automatic run every 5 minutes
+  # Offset from common minute boundaries to reduce scheduler congestion
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
 
+  # Allows Supabase / GitHub API / manual Run workflow
   workflow_dispatch:
 
+  # Run when tracker code or dependencies change
   push:
     branches:
       - main
@@ -16,6 +20,7 @@ on:
 permissions:
   contents: write
 
+# Prevent multiple tracker jobs from running simultaneously
 concurrency:
   group: leetcode-dashboard-update
   cancel-in-progress: false
@@ -25,28 +30,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ------------------------------------------------------
+      # 1. Checkout repository
+      # ------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # ------------------------------------------------------
+      # 2. Setup Python
+      # ------------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
 
+      # ------------------------------------------------------
+      # 3. Install Python packages
+      # ------------------------------------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ------------------------------------------------------
+      # 4. Run LeetCode tracker
+      # ------------------------------------------------------
       - name: Sync students and update LeetCode stats
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python tracker.py
 
+      # ------------------------------------------------------
+      # 5. Commit generated files
+      # ------------------------------------------------------
       - name: Commit generated dashboard files
         run: |
           git config user.name "github-actions[bot]"
