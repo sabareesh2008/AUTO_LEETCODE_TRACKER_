@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,9 @@ LEETCODE_URL = "https://leetcode.com/graphql"
 # If a student has more than this many accepted submissions
 # inside the requested period, the 7/30 day counts can undercount.
 RECENT_SUBMISSION_LIMIT = 300
+
+# Number of LeetCode profiles checked concurrently.
+MAX_WORKERS = 10
 
 
 LEETCODE_QUERY = """
@@ -491,6 +495,61 @@ def atomic_csv_write(
 
 
 # ============================================================
+# PARALLEL STUDENT WORKER
+# ============================================================
+
+def process_student(
+    position: int,
+    total_students: int,
+    student: pd.Series,
+    updated_at: str,
+) -> dict[str, Any]:
+    """Fetch one student's LeetCode data and return the dashboard row."""
+
+    register_number = clean(student["Register Number"])
+    student_name = clean(student["Student Name"])
+    username = clean(student["LeetCode Username"])
+
+    print(
+        f"[START {position}/{total_students}] "
+        f"{student_name} ({username})"
+    )
+
+    profile = fetch_leetcode(username)
+
+    row = {
+        "Register Number": register_number,
+        "Student Name": student_name,
+        "LeetCode Username": username,
+        "LeetCode Link": f"https://leetcode.com/u/{username}/",
+        "Problems Solved": profile["total_solved"],
+        "Solved Today": profile["solved_today"],
+        "Last 7 Days": profile["last_7_days"],
+        "Last 30 Days": profile["last_30_days"],
+        "Total Submissions": profile["submissions"],
+        "Easy": profile["easy"],
+        "Medium": profile["medium"],
+        "Hard": profile["hard"],
+        "Last Problem": profile["last_problem"],
+        "Last Solved": profile["last_solved"],
+        "Status": profile["status"],
+        "Updated At": updated_at,
+    }
+
+    print(
+        f"[DONE  {position}/{total_students}] "
+        f"{student_name} | "
+        f"30d={profile['last_30_days']} | "
+        f"7d={profile['last_7_days']} | "
+        f"today={profile['solved_today']} | "
+        f"total={profile['total_solved']} | "
+        f"{profile['status']}"
+    )
+
+    return row
+
+
+# ============================================================
 # MAIN UPDATE
 # ============================================================
 
@@ -507,50 +566,70 @@ def run_one_update() -> None:
     print(f"Students: {total_students}")
     print("=" * 64)
 
-    for position, (_, student) in enumerate(
-        students.iterrows(),
-        start=1,
-    ):
-        register_number = clean(student["Register Number"])
-        student_name = clean(student["Student Name"])
-        username = clean(student["LeetCode Username"])
+    # --------------------------------------------------------
+    # PARALLEL LEETCODE FETCH
+    # --------------------------------------------------------
 
-        print(
-            f"[{position}/{total_students}] "
-            f"{student_name} ({username})"
-        )
+    worker_count = min(MAX_WORKERS, total_students) if total_students else 1
 
-        profile = fetch_leetcode(username)
+    print(f"Parallel workers: {worker_count}")
+    print("=" * 64)
 
-        live_rows.append({
-            "Register Number": register_number,
-            "Student Name": student_name,
-            "LeetCode Username": username,
-            "LeetCode Link": (
-                f"https://leetcode.com/u/{username}/"
-            ),
-            "Problems Solved": profile["total_solved"],
-            "Solved Today": profile["solved_today"],
-            "Last 7 Days": profile["last_7_days"],
-            "Last 30 Days": profile["last_30_days"],
-            "Total Submissions": profile["submissions"],
-            "Easy": profile["easy"],
-            "Medium": profile["medium"],
-            "Hard": profile["hard"],
-            "Last Problem": profile["last_problem"],
-            "Last Solved": profile["last_solved"],
-            "Status": profile["status"],
-            "Updated At": updated_at,
-        })
+    futures = {}
 
-        print(
-            "  "
-            f"30d={profile['last_30_days']} | "
-            f"7d={profile['last_7_days']} | "
-            f"today={profile['solved_today']} | "
-            f"total={profile['total_solved']} | "
-            f"{profile['status']}"
-        )
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        for position, (_, student) in enumerate(
+            students.iterrows(),
+            start=1,
+        ):
+            future = executor.submit(
+                process_student,
+                position,
+                total_students,
+                student,
+                updated_at,
+            )
+
+            futures[future] = {
+                "position": position,
+                "student_name": clean(student["Student Name"]),
+                "register_number": clean(student["Register Number"]),
+                "username": clean(student["LeetCode Username"]),
+            }
+
+        for future in as_completed(futures):
+            info = futures[future]
+
+            try:
+                live_rows.append(future.result())
+
+            except Exception as error:
+                print(
+                    f"[FAILED {info['position']}/{total_students}] "
+                    f"{info['student_name']} "
+                    f"({info['username']}): {error}"
+                )
+
+                live_rows.append({
+                    "Register Number": info["register_number"],
+                    "Student Name": info["student_name"],
+                    "LeetCode Username": info["username"],
+                    "LeetCode Link": (
+                        f"https://leetcode.com/u/{info['username']}/"
+                    ),
+                    "Problems Solved": 0,
+                    "Solved Today": 0,
+                    "Last 7 Days": 0,
+                    "Last 30 Days": 0,
+                    "Total Submissions": 0,
+                    "Easy": 0,
+                    "Medium": 0,
+                    "Hard": 0,
+                    "Last Problem": "",
+                    "Last Solved": "",
+                    "Status": f"Worker error: {error}",
+                    "Updated At": updated_at,
+                })
 
     live_data = pd.DataFrame(live_rows)
 
