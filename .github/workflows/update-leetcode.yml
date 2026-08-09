@@ -1,12 +1,9 @@
 name: Update LeetCode Leaderboard
 
 on:
-  # Automatic run every 5 minutes
-  # Offset from common minute boundaries to reduce scheduler congestion
   schedule:
-    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
+    - cron: "*/5 * * * *"
 
-  # Allows Supabase / GitHub API / manual Run workflow
   workflow_dispatch:
 
   # Run when tracker code or dependencies change
