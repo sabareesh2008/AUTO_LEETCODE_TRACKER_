@@ -234,6 +234,15 @@ function updateLastUpdated(students) {
 
 
 function renderStudents(students) {
+  // Always display students by Register Number
+students = [...students].sort((a, b) => {
+    return String(a["Register Number"] || "")
+        .localeCompare(
+            String(b["Register Number"] || ""),
+            undefined,
+            { numeric: true }
+        );
+});
   visibleStudents = students;
 
   if (!students.length) {
