@@ -1229,7 +1229,15 @@ async function loadDailyChallengeData() {
 
   dailyChallenges = challenges || [];
   dailyChallengeResults = results || [];
+
   renderDailyChallengeHome();
+  renderSectionChallengeMiniStats();
+
+  if (
+    !document.getElementById("facultyAnalyticsModal")?.hidden
+  ) {
+    renderFacultyAnalytics();
+  }
 }
 
 function getTodayChallenge() {
@@ -1241,37 +1249,168 @@ function studentChallengeStats(registerNumber) {
   const completedByChallenge = new Map();
 
   dailyChallengeResults
-    .filter((r) => String(r.register_number) === String(registerNumber))
-    .forEach((r) => completedByChallenge.set(Number(r.challenge_id), Boolean(r.completed)));
+    .filter(
+      (result) =>
+        String(result.register_number) === String(registerNumber)
+    )
+    .forEach(
+      (result) =>
+        completedByChallenge.set(
+          Number(result.challenge_id),
+          Boolean(result.completed)
+        )
+    );
 
-  const ordered = [...dailyChallenges].sort(
-    (a, b) => a.challenge_date.localeCompare(b.challenge_date)
-  );
+  const today = localISODate();
+
+  const ordered = [...dailyChallenges]
+    .filter(
+      (challenge) =>
+        String(challenge.challenge_date) <= today
+    )
+    .sort(
+      (a, b) =>
+        String(a.challenge_date).localeCompare(
+          String(b.challenge_date)
+        )
+    );
 
   let totalCompleted = 0;
-  let currentStreak = 0;
   let longestStreak = 0;
-  let running = 0;
+  let runningStreak = 0;
 
   for (const challenge of ordered) {
-    const done = completedByChallenge.get(Number(challenge.id)) === true;
+    const done =
+      completedByChallenge.get(Number(challenge.id)) === true;
+
     if (done) {
       totalCompleted += 1;
-      running += 1;
-      longestStreak = Math.max(longestStreak, running);
+      runningStreak += 1;
+      longestStreak = Math.max(
+        longestStreak,
+        runningStreak
+      );
     } else {
-      running = 0;
+      runningStreak = 0;
     }
   }
 
-  // Current streak is calculated from the latest posted challenge backwards.
-  for (let i = ordered.length - 1; i >= 0; i -= 1) {
-    const done = completedByChallenge.get(Number(ordered[i].id)) === true;
-    if (done) currentStreak += 1;
-    else break;
+  let currentStreak = 0;
+
+  for (
+    let index = ordered.length - 1;
+    index >= 0;
+    index -= 1
+  ) {
+    const challenge = ordered[index];
+    const done =
+      completedByChallenge.get(Number(challenge.id)) === true;
+
+    if (done) {
+      currentStreak += 1;
+    } else {
+      break;
+    }
   }
 
-  return { totalCompleted, currentStreak, longestStreak };
+  const totalChallenges = ordered.length;
+
+  const completionRate =
+    totalChallenges > 0
+      ? (totalCompleted / totalChallenges) * 100
+      : 0;
+
+  return {
+    totalCompleted,
+    totalChallenges,
+    completionRate,
+    currentStreak,
+    longestStreak
+  };
+}
+
+
+function getSectionChallengeStats(section) {
+  const students = allStudents.filter(
+    (student) =>
+      normalizeSection(student.Section)
+      === normalizeSection(section)
+  );
+
+  const stats = students.map(
+    (student) =>
+      studentChallengeStats(
+        student["Register Number"]
+      )
+  );
+
+  const totalCompleted = stats.reduce(
+    (sum, stat) =>
+      sum + stat.totalCompleted,
+    0
+  );
+
+  const studentsWithStreak = stats.filter(
+    (stat) =>
+      stat.currentStreak > 0
+  ).length;
+
+  const bestCurrentStreak = Math.max(
+    0,
+    ...stats.map(
+      (stat) =>
+        stat.currentStreak
+    )
+  );
+
+  const bestLongestStreak = Math.max(
+    0,
+    ...stats.map(
+      (stat) =>
+        stat.longestStreak
+    )
+  );
+
+  const averageCompleted =
+    students.length > 0
+      ? totalCompleted / students.length
+      : 0;
+
+  return {
+    students: students.length,
+    totalCompleted,
+    studentsWithStreak,
+    bestCurrentStreak,
+    bestLongestStreak,
+    averageCompleted
+  };
+}
+
+function renderSectionChallengeMiniStats() {
+  SECTION_NAMES.forEach((section) => {
+    const key = section.replace(/\s+/g, "");
+    const completedElement =
+      document.getElementById(
+        `challengeCompleted${key}`
+      );
+    const streakElement =
+      document.getElementById(
+        `challengeBestStreak${key}`
+      );
+
+    if (!completedElement || !streakElement) {
+      return;
+    }
+
+    const stats =
+      getSectionChallengeStats(section);
+
+    completedElement.textContent =
+      stats.totalCompleted;
+
+    streakElement.textContent =
+      stats.bestCurrentStreak;
+  });
 }
 
 function renderDailyChallengeHome() {
@@ -1897,6 +2036,51 @@ function renderFacultyAnalyticsKpis(students) {
 
   document.getElementById("analyticsAverage30").textContent =
     average30.toFixed(1);
+
+  const challengeStats =
+    students.map(
+      (student) =>
+        studentChallengeStats(
+          student["Register Number"]
+        )
+    );
+
+  const totalChallengeCompleted =
+    challengeStats.reduce(
+      (sum, stat) =>
+        sum + stat.totalCompleted,
+      0
+    );
+
+  const activeChallengeStreaks =
+    challengeStats.filter(
+      (stat) =>
+        stat.currentStreak > 0
+    ).length;
+
+  const bestCurrentChallengeStreak =
+    Math.max(
+      0,
+      ...challengeStats.map(
+        (stat) =>
+          stat.currentStreak
+      )
+    );
+
+  document.getElementById(
+    "analyticsChallengeCompleted"
+  ).textContent =
+    totalChallengeCompleted;
+
+  document.getElementById(
+    "analyticsChallengeActiveStreaks"
+  ).textContent =
+    activeChallengeStreaks;
+
+  document.getElementById(
+    "analyticsChallengeBestStreak"
+  ).textContent =
+    bestCurrentChallengeStreak;
 }
 
 function renderFacultySectionBars() {
@@ -2131,6 +2315,52 @@ function renderFacultySectionSummary() {
   }).join("");
 }
 
+
+function renderFacultyChallengeSectionSummary() {
+  const body =
+    document.getElementById(
+      "analyticsChallengeSectionSummary"
+    );
+
+  if (!body) {
+    return;
+  }
+
+  body.innerHTML =
+    SECTION_NAMES.map((section) => {
+      const stats =
+        getSectionChallengeStats(section);
+
+      return `
+        <tr>
+          <td>
+            <strong>${escapeHTML(section)}</strong>
+          </td>
+
+          <td>
+            <strong>${stats.totalCompleted}</strong>
+          </td>
+
+          <td>
+            ${stats.studentsWithStreak}
+          </td>
+
+          <td>
+            🔥 ${stats.bestCurrentStreak}
+          </td>
+
+          <td>
+            🏆 ${stats.bestLongestStreak}
+          </td>
+
+          <td>
+            ${stats.averageCompleted.toFixed(1)}
+          </td>
+        </tr>
+      `;
+    }).join("");
+}
+
 function renderFacultyAnalytics() {
   const students =
     getFacultyAnalyticsStudents();
@@ -2156,6 +2386,7 @@ function renderFacultyAnalytics() {
   renderFacultyDifficulty(students);
   renderFacultyTopStudents(students);
   renderFacultyInactiveStudents(students);
+  renderFacultyChallengeSectionSummary();
   renderFacultySectionSummary();
 }
 
@@ -2628,6 +2859,56 @@ async function openStudentProfile(registerNumber) {
     student["Last Problem"] || "–";
   document.getElementById("profileLastSolved").textContent =
     student["Last Solved"] || "–";
+
+  const challengeStats =
+    studentChallengeStats(
+      student["Register Number"]
+    );
+
+  const todayChallenge =
+    getTodayChallenge();
+
+  const completedToday =
+    todayChallenge
+    && dailyChallengeResults.some(
+      (result) =>
+        Number(result.challenge_id)
+        === Number(todayChallenge.id)
+        && String(result.register_number)
+        === String(student["Register Number"])
+        && result.completed
+    );
+
+  document.getElementById(
+    "profileChallengeCompleted"
+  ).textContent =
+    challengeStats.totalCompleted;
+
+  document.getElementById(
+    "profileChallengeCurrentStreak"
+  ).textContent =
+    `🔥 ${challengeStats.currentStreak}`;
+
+  document.getElementById(
+    "profileChallengeLongestStreak"
+  ).textContent =
+    `🏆 ${challengeStats.longestStreak}`;
+
+  document.getElementById(
+    "profileChallengeRate"
+  ).textContent =
+    `${challengeStats.completionRate.toFixed(1)}%`;
+
+  document.getElementById(
+    "profileChallengeTodayBadge"
+  ).textContent =
+    todayChallenge
+      ? (
+          completedToday
+            ? "Today: ✅ Completed"
+            : "Today: ❌ Pending"
+        )
+      : "Today: No Challenge";
 
   const leetCodeLink = document.getElementById("profileLeetCodeLink");
   leetCodeLink.href =

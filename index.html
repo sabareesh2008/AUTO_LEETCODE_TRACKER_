@@ -90,36 +90,60 @@
           <span class="section-card-title">ECE A</span>
           <strong id="countECEA">0</strong>
           <span>Students</span>
+          <div class="section-challenge-mini">
+            <span>🎯 Completed <strong id="challengeCompletedECEA">0</strong></span>
+            <span>🔥 Best Streak <strong id="challengeBestStreakECEA">0</strong></span>
+          </div>
         </button>
 
         <button class="section-card" data-section="ECE B" type="button">
           <span class="section-card-title">ECE B</span>
           <strong id="countECEB">0</strong>
           <span>Students</span>
+          <div class="section-challenge-mini">
+            <span>🎯 Completed <strong id="challengeCompletedECEB">0</strong></span>
+            <span>🔥 Best Streak <strong id="challengeBestStreakECEB">0</strong></span>
+          </div>
         </button>
 
         <button class="section-card" data-section="ECE C" type="button">
           <span class="section-card-title">ECE C</span>
           <strong id="countECEC">0</strong>
           <span>Students</span>
+          <div class="section-challenge-mini">
+            <span>🎯 Completed <strong id="challengeCompletedECEC">0</strong></span>
+            <span>🔥 Best Streak <strong id="challengeBestStreakECEC">0</strong></span>
+          </div>
         </button>
 
         <button class="section-card" data-section="ECE D" type="button">
           <span class="section-card-title">ECE D</span>
           <strong id="countECED">0</strong>
           <span>Students</span>
+          <div class="section-challenge-mini">
+            <span>🎯 Completed <strong id="challengeCompletedECED">0</strong></span>
+            <span>🔥 Best Streak <strong id="challengeBestStreakECED">0</strong></span>
+          </div>
         </button>
 
         <button class="section-card" data-section="ECE E" type="button">
           <span class="section-card-title">ECE E</span>
           <strong id="countECEE">0</strong>
           <span>Students</span>
+          <div class="section-challenge-mini">
+            <span>🎯 Completed <strong id="challengeCompletedECEE">0</strong></span>
+            <span>🔥 Best Streak <strong id="challengeBestStreakECEE">0</strong></span>
+          </div>
         </button>
 
         <button class="section-card" data-section="ECE F" type="button">
           <span class="section-card-title">ECE F</span>
           <strong id="countECEF">0</strong>
           <span>Students</span>
+          <div class="section-challenge-mini">
+            <span>🎯 Completed <strong id="challengeCompletedECEF">0</strong></span>
+            <span>🔥 Best Streak <strong id="challengeBestStreakECEF">0</strong></span>
+          </div>
         </button>
 
         <button class="section-card overall-card" data-section="OVERALL" type="button">
@@ -777,6 +801,24 @@
           <strong id="analyticsAverage30">0.0</strong>
           <small>30-day average</small>
         </article>
+
+        <article class="analytics-kpi-card challenge-analytics-kpi">
+          <span>Challenge Completed</span>
+          <strong id="analyticsChallengeCompleted">0</strong>
+          <small>Total completions across students</small>
+        </article>
+
+        <article class="analytics-kpi-card challenge-analytics-kpi">
+          <span>Active Challenge Streaks</span>
+          <strong id="analyticsChallengeActiveStreaks">0</strong>
+          <small>Students with current streak &gt; 0</small>
+        </article>
+
+        <article class="analytics-kpi-card challenge-analytics-kpi">
+          <span>Best Current Streak</span>
+          <strong id="analyticsChallengeBestStreak">0</strong>
+          <small>Highest active streak</small>
+        </article>
       </div>
 
       <div class="analytics-grid-two">
@@ -853,6 +895,32 @@
           </div>
         </article>
       </div>
+
+
+      <article class="analytics-card analytics-section-table-card">
+        <div class="analytics-card-heading">
+          <div>
+            <span class="analytics-kicker">DAILY CHALLENGE</span>
+            <h3>🎯 Section Challenge Performance</h3>
+          </div>
+        </div>
+
+        <div class="analytics-table-wrap">
+          <table class="analytics-table">
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Total Completed</th>
+                <th>Students with Streak</th>
+                <th>Best Current Streak</th>
+                <th>Best Longest Streak</th>
+                <th>Avg Completed / Student</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsChallengeSectionSummary"></tbody>
+          </table>
+        </div>
+      </article>
 
       <article class="analytics-card analytics-section-table-card">
         <div class="analytics-card-heading">
@@ -998,6 +1066,42 @@
         </div>
 
         <div id="profileDailyActivity" class="daily-activity-chart"></div>
+      </article>
+
+
+      <article class="profile-chart-card profile-challenge-card">
+        <div class="profile-card-heading">
+          <div>
+            <span class="profile-kicker">DAILY CHALLENGE</span>
+            <h3>🎯 Challenge Performance</h3>
+          </div>
+
+          <span id="profileChallengeTodayBadge" class="profile-challenge-today">
+            Today: —
+          </span>
+        </div>
+
+        <div class="profile-challenge-stats">
+          <div>
+            <span>Total Completed</span>
+            <strong id="profileChallengeCompleted">0</strong>
+          </div>
+
+          <div>
+            <span>Current Streak</span>
+            <strong id="profileChallengeCurrentStreak">🔥 0</strong>
+          </div>
+
+          <div>
+            <span>Longest Streak</span>
+            <strong id="profileChallengeLongestStreak">🏆 0</strong>
+          </div>
+
+          <div>
+            <span>Completion Rate</span>
+            <strong id="profileChallengeRate">0%</strong>
+          </div>
+        </div>
       </article>
 
       <article class="profile-last-solved">

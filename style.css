@@ -2594,32 +2594,7 @@ body.modal-open {
         width: 100%;
     }
 }
-/* ===== FIX SECTION DROPDOWN VISIBILITY ===== */
 
-#challengeSectionFilter {
-    background: #111c2e;
-    color: #f1f5f9;
-    border: 1px solid #3dd6c6;
-    color-scheme: dark;
-}
-
-#challengeSectionFilter option {
-    background-color: #111c2e;
-    color: #f1f5f9;
-}
-
-/* Faculty Analytics section dropdown */
-#analyticsSectionFilter {
-    background: #111c2e;
-    color: #f1f5f9;
-    border: 1px solid #3dd6c6;
-    color-scheme: dark;
-}
-
-#analyticsSectionFilter option {
-    background-color: #111c2e;
-    color: #f1f5f9;
-}
 
 /* DAILY CHALLENGE */
 .daily-challenge-home-card{grid-column:1/-1;border-color:rgba(52,211,153,.25);background:radial-gradient(circle at 85% 0%,rgba(52,211,153,.11),transparent 30%),rgba(255,255,255,.035)}
@@ -2642,3 +2617,108 @@ body.modal-open {
 .challenge-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:15px}.challenge-table{width:100%;min-width:780px;border-collapse:collapse}.challenge-table th,.challenge-table td{padding:12px;border-bottom:1px solid var(--border);text-align:left}.challenge-table th{color:var(--muted);font-size:9px;text-transform:uppercase}
 .challenge-status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.challenge-status-card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:13px;border:1px solid var(--border);border-radius:15px;background:rgba(255,255,255,.03)}.challenge-status-card.done{border-color:rgba(52,211,153,.2)}.challenge-status-card.pending{border-color:rgba(251,113,133,.16)}.challenge-status-card small{display:block;margin-top:3px;color:var(--muted);font-size:10px}.challenge-status-icon{font-size:18px}.challenge-mini-stats{display:flex;gap:8px;font-size:11px}
 @media(max-width:760px){.challenge-kpi-grid{grid-template-columns:repeat(2,1fr)}.challenge-status-grid{grid-template-columns:1fr}.daily-challenge-toolbar,.today-challenge-hero,.challenge-block-head{flex-direction:column}.daily-challenge-modal{padding:10px}.daily-challenge-panel{padding:16px;min-height:calc(100vh - 20px)}}
+
+
+/* ==========================================================
+   DAILY CHALLENGE STATS — SECTION CARDS
+   ========================================================== */
+
+.section-challenge-mini {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 14px;
+}
+
+.section-challenge-mini > span {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 9px;
+    border: 1px solid rgba(52, 211, 153, 0.12);
+    border-radius: 11px;
+    background: rgba(52, 211, 153, 0.045);
+    color: var(--muted) !important;
+    font-size: 9px !important;
+}
+
+.section-challenge-mini strong {
+    display: inline !important;
+    margin: 0 !important;
+    font-size: 12px !important;
+    color: var(--text);
+}
+
+/* Student profile Daily Challenge */
+.profile-challenge-card {
+    margin-top: 16px;
+}
+
+.profile-challenge-today {
+    padding: 6px 10px;
+    border: 1px solid rgba(52, 211, 153, 0.16);
+    border-radius: 999px;
+    background: rgba(52, 211, 153, 0.055);
+    color: #86efac;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.profile-challenge-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.profile-challenge-stats > div {
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.profile-challenge-stats span {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.profile-challenge-stats strong {
+    font-size: 22px;
+}
+
+/* Faculty Challenge KPI */
+.challenge-analytics-kpi {
+    border-color: rgba(52, 211, 153, 0.13);
+}
+
+/* Keep dropdowns visible in dark theme */
+#challengeSectionFilter,
+#analyticsSectionFilter {
+    background: #111c2e;
+    color: #f1f5f9;
+    border: 1px solid #3dd6c6;
+    color-scheme: dark;
+}
+
+#challengeSectionFilter option,
+#analyticsSectionFilter option {
+    background-color: #111c2e;
+    color: #f1f5f9;
+}
+
+@media (max-width: 760px) {
+    .profile-challenge-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .section-challenge-mini {
+        grid-template-columns: 1fr;
+    }
+}
