@@ -612,6 +612,100 @@ def read_students() -> pd.DataFrame:
 
 
 # ============================================================
+# HISTORY-BASED 7 / 30 DAY COUNTS
+# ============================================================
+
+def build_daily_solved_from_history(
+    history: pd.DataFrame,
+    register_number: str,
+    current_total: int,
+) -> tuple[int, int]:
+    """Calculate rolling 7/30-day solved counts from stored total-solved history."""
+
+    if history.empty:
+        return 0, 0
+
+    student_history = history[
+        history["Register Number"].astype(str) == str(register_number)
+    ].copy()
+
+    if student_history.empty:
+        return 0, 0
+
+    student_history["DateParsed"] = pd.to_datetime(
+        student_history["Date"],
+        errors="coerce",
+    )
+
+    student_history["TotalParsed"] = pd.to_numeric(
+        student_history["Problems Solved"],
+        errors="coerce",
+    )
+
+    student_history = student_history.dropna(
+        subset=["DateParsed", "TotalParsed"]
+    )
+
+    if student_history.empty:
+        return 0, 0
+
+    student_history = (
+        student_history
+        .sort_values("DateParsed")
+        .drop_duplicates(
+            subset=["DateParsed"],
+            keep="last",
+        )
+    )
+
+    today = pd.Timestamp(date.today())
+
+    student_history = student_history[
+        student_history["DateParsed"] < today
+    ].copy()
+
+    snapshots = [
+        (
+            row["DateParsed"].normalize(),
+            int(row["TotalParsed"]),
+        )
+        for _, row in student_history.iterrows()
+    ]
+
+    snapshots.append((today, int(current_total)))
+    snapshots.sort(key=lambda item: item[0])
+
+    daily_solved = []
+    previous_total = None
+
+    for snapshot_date, total in snapshots:
+        if previous_total is None:
+            previous_total = total
+            continue
+
+        solved_that_day = max(0, total - previous_total)
+        daily_solved.append((snapshot_date, solved_that_day))
+        previous_total = total
+
+    seven_start = today - pd.Timedelta(days=6)
+    thirty_start = today - pd.Timedelta(days=29)
+
+    last_7_days = sum(
+        solved
+        for snapshot_date, solved in daily_solved
+        if snapshot_date >= seven_start
+    )
+
+    last_30_days = sum(
+        solved
+        for snapshot_date, solved in daily_solved
+        if snapshot_date >= thirty_start
+    )
+
+    return int(last_7_days), int(last_30_days)
+
+
+# ============================================================
 # PARALLEL STUDENT WORKER
 # ============================================================
 
@@ -620,6 +714,7 @@ def process_student(
     total_students: int,
     student: pd.Series,
     updated_at: str,
+    previous_history: pd.DataFrame,
 ) -> dict[str, Any]:
     register_number = clean(
         student["Register Number"]
@@ -646,6 +741,24 @@ def process_student(
     profile = fetch_leetcode(
         username
     )
+
+    history_7_days, history_30_days = build_daily_solved_from_history(
+        previous_history,
+        register_number,
+        profile["total_solved"],
+    )
+
+    has_student_history = (
+        not previous_history.empty
+        and (
+            previous_history["Register Number"].astype(str)
+            == str(register_number)
+        ).any()
+    )
+
+    if has_student_history:
+        profile["last_7_days"] = history_7_days
+        profile["last_30_days"] = history_30_days
 
     row = {
         "Section": section,
@@ -1159,6 +1272,8 @@ def run_one_update() -> None:
     )
     print("=" * 64)
 
+    previous_history = load_history()
+
     futures = {}
 
     with ThreadPoolExecutor(
@@ -1177,6 +1292,7 @@ def run_one_update() -> None:
                 total_students,
                 student,
                 updated_at,
+                previous_history,
             )
 
             futures[
@@ -1303,7 +1419,7 @@ def run_one_update() -> None:
     )
 
     history = update_history(
-        load_history(),
+        previous_history,
         history_rows,
     )
 
