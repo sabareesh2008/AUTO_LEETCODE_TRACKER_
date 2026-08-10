@@ -2594,7 +2594,32 @@ body.modal-open {
         width: 100%;
     }
 }
+/* ===== FIX SECTION DROPDOWN VISIBILITY ===== */
 
+#challengeSectionFilter {
+    background: #111c2e;
+    color: #f1f5f9;
+    border: 1px solid #3dd6c6;
+    color-scheme: dark;
+}
+
+#challengeSectionFilter option {
+    background-color: #111c2e;
+    color: #f1f5f9;
+}
+
+/* Faculty Analytics section dropdown */
+#analyticsSectionFilter {
+    background: #111c2e;
+    color: #f1f5f9;
+    border: 1px solid #3dd6c6;
+    color-scheme: dark;
+}
+
+#analyticsSectionFilter option {
+    background-color: #111c2e;
+    color: #f1f5f9;
+}
 
 /* DAILY CHALLENGE */
 .daily-challenge-home-card{grid-column:1/-1;border-color:rgba(52,211,153,.25);background:radial-gradient(circle at 85% 0%,rgba(52,211,153,.11),transparent 30%),rgba(255,255,255,.035)}
