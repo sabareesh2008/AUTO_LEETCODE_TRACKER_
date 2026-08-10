@@ -472,6 +472,140 @@
     </section>
   </div>
 
+
+  <!-- =======================================================
+       PUBLIC STUDENT PROGRESS PROFILE
+       ======================================================= -->
+  <div id="studentProfileModal" class="student-profile-modal" hidden>
+    <div class="student-profile-backdrop" data-close-student-profile></div>
+
+    <section
+      class="student-profile-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="studentProfileName"
+    >
+      <div class="student-profile-toolbar">
+        <button
+          id="closeStudentProfile"
+          class="profile-back-button"
+          type="button"
+        >
+          ← Back to Leaderboard
+        </button>
+
+        <a
+          id="profileLeetCodeLink"
+          class="action-button primary"
+          href="#"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View LeetCode ↗
+        </a>
+      </div>
+
+      <div class="student-profile-hero">
+        <div class="student-avatar" id="studentAvatar">S</div>
+
+        <div class="student-profile-identity">
+          <div class="profile-section-line">
+            <span id="profileSection" class="section-pill">ECE</span>
+            <span id="profileStatus" class="profile-status-dot">Success</span>
+          </div>
+
+          <h2 id="studentProfileName">Student</h2>
+          <p id="profileRegisterNumber">Register Number</p>
+          <p id="profileUsername">@username</p>
+        </div>
+
+        <div class="profile-ranks">
+          <div class="profile-rank-card">
+            <span>Section Rank</span>
+            <strong id="profileSectionRank">#–</strong>
+          </div>
+
+          <div class="profile-rank-card">
+            <span>Overall Rank</span>
+            <strong id="profileOverallRank">#–</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-stat-grid">
+        <article class="profile-stat-card">
+          <span>Total Solved</span>
+          <strong id="profileTotalSolved">0</strong>
+        </article>
+
+        <article class="profile-stat-card">
+          <span>Last 30 Days</span>
+          <strong id="profile30Days">0</strong>
+        </article>
+
+        <article class="profile-stat-card">
+          <span>Last 7 Days</span>
+          <strong id="profile7Days">0</strong>
+        </article>
+
+        <article class="profile-stat-card">
+          <span>Today</span>
+          <strong id="profileToday">0</strong>
+        </article>
+      </div>
+
+      <div class="profile-dashboard-grid">
+        <article class="profile-chart-card profile-progress-card">
+          <div class="profile-card-heading">
+            <div>
+              <span class="profile-kicker">PROGRESS</span>
+              <h3>Problems Solved Over Time</h3>
+            </div>
+            <span id="profileHistoryRange" class="profile-chart-note"></span>
+          </div>
+
+          <div id="profileProgressChart" class="profile-line-chart"></div>
+        </article>
+
+        <article class="profile-chart-card">
+          <div class="profile-card-heading">
+            <div>
+              <span class="profile-kicker">DIFFICULTY</span>
+              <h3>Problem Breakdown</h3>
+            </div>
+          </div>
+
+          <div id="profileDifficultyChart" class="difficulty-chart"></div>
+        </article>
+      </div>
+
+      <article class="profile-chart-card">
+        <div class="profile-card-heading">
+          <div>
+            <span class="profile-kicker">CONSISTENCY</span>
+            <h3>Daily Activity</h3>
+          </div>
+
+          <span class="profile-chart-note">Recent completed days</span>
+        </div>
+
+        <div id="profileDailyActivity" class="daily-activity-chart"></div>
+      </article>
+
+      <article class="profile-last-solved">
+        <div>
+          <span>Last Problem</span>
+          <strong id="profileLastProblem">–</strong>
+        </div>
+
+        <div>
+          <span>Last Solved</span>
+          <strong id="profileLastSolved">–</strong>
+        </div>
+      </article>
+    </section>
+  </div>
+
   <footer>
     ECE LeetCode Department Tracker · Supabase · GitHub Actions
   </footer>

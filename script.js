@@ -6,6 +6,10 @@ let allStudents = [];
 let visibleStudents = [];
 let directoryStudents = [];
 
+let historyRows = [];
+let dailyActivityRows = [];
+let profileDataLoaded = false;
+
 let selectedSection = null;
 let pendingDeleteId = null;
 
@@ -351,9 +355,14 @@ function renderStudents(students) {
         ${sectionCell}
 
         <td class="student-cell">
-          <span class="student-name">
-            ${escapeHTML(student["Student Name"])}
-          </span>
+          <button
+            class="student-name student-profile-link"
+            type="button"
+            data-profile-register="${escapeHTML(student["Register Number"])}"
+            title="Open student progress profile"
+          >
+            ${escapeHTML(student["Student Name"])} ↗
+          </button>
 
           <span class="register-number">
             ${escapeHTML(student["Register Number"])}
@@ -463,6 +472,9 @@ async function loadData() {
   }
 
   allStudents = parseCSV(await response.text());
+
+  // Allow History.csv / DailyActivity.csv to refresh after tracker updates.
+  profileDataLoaded = false;
 
   updateSectionCounts();
   updateLastUpdated();
@@ -755,9 +767,10 @@ function openEditModal(studentId) {
 
 
 function closeProfile() {
-    profileModal.hidden = true;
-    document.body.classList.remove("modal-open");
+  profileModal.hidden = true;
+  document.body.classList.remove("modal-open");
 }
+
 
 async function saveProfile(event) {
   event.preventDefault();
@@ -951,6 +964,415 @@ function downloadPDF() {
 }
 
 
+
+// ============================================================
+// PUBLIC STUDENT PROGRESS PROFILE
+// ============================================================
+
+const studentProfileModal = document.getElementById("studentProfileModal");
+const closeStudentProfileButton = document.getElementById("closeStudentProfile");
+
+function profileNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function formatProfileDate(value) {
+  if (!value) return "–";
+
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    { month: "short", day: "numeric" }
+  );
+}
+
+async function loadProfileData() {
+  if (profileDataLoaded) return;
+
+  const cacheBust = Date.now();
+
+  const [historyResponse, activityResponse] = await Promise.all([
+    fetch(`History.csv?time=${cacheBust}`, { cache: "no-store" }),
+    fetch(`DailyActivity.csv?time=${cacheBust}`, { cache: "no-store" })
+  ]);
+
+  if (historyResponse.ok) {
+    historyRows = parseCSV(await historyResponse.text());
+  } else {
+    historyRows = [];
+  }
+
+  if (activityResponse.ok) {
+    dailyActivityRows = parseCSV(await activityResponse.text());
+  } else {
+    dailyActivityRows = [];
+  }
+
+  profileDataLoaded = true;
+}
+
+function renderDifficultyChart(student) {
+  const values = [
+    ["Easy", profileNumber(student.Easy)],
+    ["Medium", profileNumber(student.Medium)],
+    ["Hard", profileNumber(student.Hard)]
+  ];
+
+  const maximum = Math.max(1, ...values.map((item) => item[1]));
+
+  document.getElementById("profileDifficultyChart").innerHTML =
+    values.map(([label, value]) => {
+      const width = Math.max(0, Math.min(100, (value / maximum) * 100));
+
+      return `
+        <div class="difficulty-row">
+          <div class="difficulty-label">
+            <span>${label}</span>
+            <strong>${value}</strong>
+          </div>
+
+          <div class="difficulty-track">
+            <span
+              class="difficulty-fill difficulty-${label.toLowerCase()}"
+              style="width:${width}%"
+            ></span>
+          </div>
+        </div>
+      `;
+    }).join("");
+}
+
+function renderProgressChart(registerNumber, student) {
+  const rows = historyRows
+    .filter(
+      (row) => String(row["Register Number"]) === String(registerNumber)
+    )
+    .map((row) => ({
+      date: row.Date,
+      total: profileNumber(row["Problems Solved"])
+    }))
+    .filter((row) => row.date)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  // One point per day. If the current LiveData value is newer, include it.
+  const byDate = new Map();
+
+  rows.forEach((row) => {
+    byDate.set(String(row.date).slice(0, 10), row.total);
+  });
+
+  const updatedDate =
+    String(student["Updated At"] || "").slice(0, 10);
+
+  if (updatedDate) {
+    byDate.set(
+      updatedDate,
+      profileNumber(student["Problems Solved"])
+    );
+  }
+
+  const points = [...byDate.entries()]
+    .map(([date, total]) => ({ date, total }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-30);
+
+  const container = document.getElementById("profileProgressChart");
+  const range = document.getElementById("profileHistoryRange");
+
+  if (!points.length) {
+    range.textContent = "";
+    container.innerHTML = `
+      <div class="profile-empty-chart">
+        Progress history will appear after tracker snapshots are collected.
+      </div>
+    `;
+    return;
+  }
+
+  range.textContent =
+    points.length === 1
+      ? formatProfileDate(points[0].date)
+      : `${formatProfileDate(points[0].date)} – ${formatProfileDate(points[points.length - 1].date)}`;
+
+  if (points.length === 1) {
+    container.innerHTML = `
+      <div class="single-progress-point">
+        <span>${formatProfileDate(points[0].date)}</span>
+        <strong>${points[0].total}</strong>
+        <small>Total problems solved</small>
+      </div>
+    `;
+    return;
+  }
+
+  const width = 760;
+  const height = 260;
+  const paddingLeft = 48;
+  const paddingRight = 22;
+  const paddingTop = 24;
+  const paddingBottom = 46;
+
+  const totals = points.map((point) => point.total);
+  let minValue = Math.min(...totals);
+  let maxValue = Math.max(...totals);
+
+  if (minValue === maxValue) {
+    minValue = Math.max(0, minValue - 1);
+    maxValue += 1;
+  }
+
+  const plotWidth = width - paddingLeft - paddingRight;
+  const plotHeight = height - paddingTop - paddingBottom;
+
+  const xFor = (index) =>
+    paddingLeft + (index / (points.length - 1)) * plotWidth;
+
+  const yFor = (value) =>
+    paddingTop
+    + ((maxValue - value) / (maxValue - minValue)) * plotHeight;
+
+  const polyline = points
+    .map((point, index) => `${xFor(index)},${yFor(point.total)}`)
+    .join(" ");
+
+  const gridValues = [
+    maxValue,
+    Math.round((maxValue + minValue) / 2),
+    minValue
+  ];
+
+  const grid = gridValues.map((value) => {
+    const y = yFor(value);
+
+    return `
+      <line
+        x1="${paddingLeft}"
+        y1="${y}"
+        x2="${width - paddingRight}"
+        y2="${y}"
+        class="profile-grid-line"
+      />
+      <text
+        x="${paddingLeft - 10}"
+        y="${y + 4}"
+        text-anchor="end"
+        class="profile-axis-text"
+      >${value}</text>
+    `;
+  }).join("");
+
+  const circles = points.map((point, index) => `
+    <circle
+      cx="${xFor(index)}"
+      cy="${yFor(point.total)}"
+      r="5"
+      class="profile-line-point"
+    >
+      <title>${formatProfileDate(point.date)}: ${point.total} solved</title>
+    </circle>
+  `).join("");
+
+  const labelIndexes = [...new Set([
+    0,
+    Math.floor((points.length - 1) / 2),
+    points.length - 1
+  ])];
+
+  const labels = labelIndexes.map((index) => `
+    <text
+      x="${xFor(index)}"
+      y="${height - 14}"
+      text-anchor="middle"
+      class="profile-axis-text"
+    >${formatProfileDate(points[index].date)}</text>
+  `).join("");
+
+  container.innerHTML = `
+    <svg
+      class="profile-progress-svg"
+      viewBox="0 0 ${width} ${height}"
+      role="img"
+      aria-label="Problems solved over time"
+    >
+      ${grid}
+
+      <polyline
+        points="${polyline}"
+        class="profile-line-path"
+      ></polyline>
+
+      ${circles}
+      ${labels}
+    </svg>
+  `;
+}
+
+function renderDailyActivity(registerNumber) {
+  const rows = dailyActivityRows
+    .filter(
+      (row) => String(row["Register Number"]) === String(registerNumber)
+    )
+    .map((row) => ({
+      date: row.Date,
+      solved: profileNumber(row["Solved That Day"])
+    }))
+    .filter((row) => row.date)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .slice(-14);
+
+  const container = document.getElementById("profileDailyActivity");
+
+  if (!rows.length) {
+    container.innerHTML = `
+      <div class="profile-empty-chart">
+        Daily activity will appear as completed-day data is collected.
+      </div>
+    `;
+    return;
+  }
+
+  const maximum = Math.max(1, ...rows.map((row) => row.solved));
+
+  container.innerHTML = rows.map((row) => {
+    const width =
+      row.solved === 0
+        ? 0
+        : Math.max(7, (row.solved / maximum) * 100);
+
+    return `
+      <div class="activity-row">
+        <span class="activity-date">${formatProfileDate(row.date)}</span>
+
+        <div class="activity-track">
+          <span
+            class="activity-fill"
+            style="width:${width}%"
+          ></span>
+        </div>
+
+        <strong>${row.solved}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+async function openStudentProfile(registerNumber) {
+  const student = allStudents.find(
+    (item) =>
+      String(item["Register Number"]) === String(registerNumber)
+  );
+
+  if (!student) return;
+
+  studentProfileModal.hidden = false;
+  document.body.classList.add("modal-open");
+
+  const initials = String(student["Student Name"] || "S")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  document.getElementById("studentAvatar").textContent = initials || "S";
+  document.getElementById("studentProfileName").textContent =
+    student["Student Name"] || "Student";
+  document.getElementById("profileRegisterNumber").textContent =
+    student["Register Number"] || "–";
+  document.getElementById("profileUsername").textContent =
+    `@${student["LeetCode Username"] || "username"}`;
+  document.getElementById("profileSection").textContent =
+    student.Section || "ECE";
+  document.getElementById("profileStatus").textContent =
+    student.Status || "Unknown";
+
+  document.getElementById("profileSectionRank").textContent =
+    `#${student["Section Rank"] || "–"}`;
+  document.getElementById("profileOverallRank").textContent =
+    `#${student["Overall Rank"] || "–"}`;
+
+  document.getElementById("profileTotalSolved").textContent =
+    student["Problems Solved"] || "0";
+  document.getElementById("profile30Days").textContent =
+    student["Last 30 Days"] || "0";
+  document.getElementById("profile7Days").textContent =
+    student["Last 7 Days"] || "0";
+  document.getElementById("profileToday").textContent =
+    student["Solved Today"] || "0";
+
+  document.getElementById("profileLastProblem").textContent =
+    student["Last Problem"] || "–";
+  document.getElementById("profileLastSolved").textContent =
+    student["Last Solved"] || "–";
+
+  const leetCodeLink = document.getElementById("profileLeetCodeLink");
+  leetCodeLink.href =
+    student["LeetCode Link"]
+    || `https://leetcode.com/u/${encodeURIComponent(student["LeetCode Username"] || "")}/`;
+
+  renderDifficultyChart(student);
+
+  document.getElementById("profileProgressChart").innerHTML =
+    `<div class="profile-empty-chart">Loading progress...</div>`;
+
+  document.getElementById("profileDailyActivity").innerHTML =
+    `<div class="profile-empty-chart">Loading activity...</div>`;
+
+  try {
+    await loadProfileData();
+    renderProgressChart(registerNumber, student);
+    renderDailyActivity(registerNumber);
+  } catch (error) {
+    console.error(error);
+
+    document.getElementById("profileProgressChart").innerHTML =
+      `<div class="profile-empty-chart">Unable to load History.csv.</div>`;
+
+    document.getElementById("profileDailyActivity").innerHTML =
+      `<div class="profile-empty-chart">Unable to load DailyActivity.csv.</div>`;
+  }
+}
+
+function closeStudentProfile() {
+  studentProfileModal.hidden = true;
+
+  // Keep scrolling locked only if another modal is still open.
+  const anotherModalOpen = [
+    adminLoginModal,
+    profileModal,
+    manageStudentsModal,
+    deleteModal
+  ].some((modal) => modal && !modal.hidden);
+
+  if (!anotherModalOpen) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+tableBody.addEventListener("click", (event) => {
+  const profileButton = event.target.closest("[data-profile-register]");
+
+  if (!profileButton) return;
+
+  openStudentProfile(profileButton.dataset.profileRegister);
+});
+
+closeStudentProfileButton.addEventListener("click", closeStudentProfile);
+
+studentProfileModal
+  .querySelectorAll("[data-close-student-profile]")
+  .forEach((element) =>
+    element.addEventListener("click", closeStudentProfile)
+  );
+
+
 async function initialize() {
   createClient();
   await loadData();
@@ -1066,6 +1488,8 @@ document.addEventListener("keydown", (event) => {
   profileModal.hidden = true;
   manageStudentsModal.hidden = true;
   deleteModal.hidden = true;
+  studentProfileModal.hidden = true;
+  document.body.classList.remove("modal-open");
 });
 
 initialize();

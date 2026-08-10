@@ -1247,25 +1247,434 @@ footer {
         display: block !important;
     }
 }
-/* =========================================
-   FIX ADD PROFILE MODAL SCROLLING
-   ========================================= */
 
-.profile-modal {
+
+/* ==========================================================
+   PUBLIC STUDENT PROGRESS PROFILE
+   ========================================================== */
+
+body.modal-open {
+    overflow: hidden;
+}
+
+.student-profile-modal {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    z-index: 12000;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.student-profile-modal[hidden] {
+    display: none !important;
+}
+
+.student-profile-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.78);
+    backdrop-filter: blur(10px);
+}
+
+.student-profile-panel {
+    position: relative;
+    z-index: 1;
+    width: min(1120px, 100%);
+    min-height: calc(100vh - 48px);
+    margin: 0 auto;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(96, 165, 250, 0.10),
+            transparent 30%
+        ),
+        #07101f;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+}
+
+.student-profile-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.profile-back-button {
+    border: 0;
+    padding: 10px 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.profile-back-button:hover {
+    color: var(--text);
+}
+
+.student-profile-hero {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 20px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.student-avatar {
+    display: grid;
+    place-items: center;
+    width: 78px;
+    height: 78px;
+    border-radius: 22px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(96, 165, 250, 0.28),
+            rgba(129, 140, 248, 0.18)
+        );
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    font-size: 26px;
+    font-weight: 900;
+}
+
+.profile-section-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile-status-dot {
+    color: #86efac;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.student-profile-identity h2 {
+    margin: 9px 0 5px;
+    font-size: clamp(26px, 4vw, 40px);
+}
+
+.student-profile-identity p {
+    margin: 3px 0;
+    color: var(--muted);
+}
+
+.profile-ranks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+    gap: 10px;
+}
+
+.profile-rank-card {
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.profile-rank-card span,
+.profile-stat-card span,
+.profile-last-solved span {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.profile-rank-card strong {
+    font-size: 25px;
+}
+
+.profile-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.profile-stat-card {
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.profile-stat-card strong {
+    font-size: clamp(28px, 5vw, 40px);
+}
+
+.profile-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.profile-chart-card {
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.profile-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.profile-card-heading h3 {
+    margin: 5px 0 0;
+    font-size: 19px;
+}
+
+.profile-kicker {
+    color: var(--accent-2);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+}
+
+.profile-chart-note {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.profile-line-chart {
+    min-height: 260px;
+}
+
+.profile-progress-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 240px;
+    overflow: visible;
+}
+
+.profile-grid-line {
+    stroke: rgba(148, 163, 184, 0.13);
+    stroke-width: 1;
+}
+
+.profile-axis-text {
+    fill: #94a3b8;
+    font-size: 11px;
+}
+
+.profile-line-path {
+    fill: none;
+    stroke: #60a5fa;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.profile-line-point {
+    fill: #07101f;
+    stroke: #93c5fd;
+    stroke-width: 3;
+}
+
+.single-progress-point,
+.profile-empty-chart {
+    display: grid;
+    place-items: center;
+    min-height: 220px;
+    text-align: center;
+    color: var(--muted);
+}
+
+.single-progress-point strong {
+    margin: 8px 0;
+    color: var(--text);
+    font-size: 56px;
+}
+
+.single-progress-point small {
+    color: var(--muted);
+}
+
+.difficulty-chart {
+    display: grid;
+    gap: 22px;
+    padding-top: 10px;
+}
+
+.difficulty-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.difficulty-label span {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.difficulty-track,
+.activity-track {
+    height: 9px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+}
+
+.difficulty-fill,
+.activity-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #60a5fa, #818cf8);
+}
+
+.difficulty-easy {
+    background: linear-gradient(90deg, #34d399, #6ee7b7);
+}
+
+.difficulty-medium {
+    background: linear-gradient(90deg, #fbbf24, #fde68a);
+}
+
+.difficulty-hard {
+    background: linear-gradient(90deg, #fb7185, #fda4af);
+}
+
+.daily-activity-chart {
+    display: grid;
+    gap: 10px;
+}
+
+.activity-row {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) 32px;
+    align-items: center;
+    gap: 12px;
+}
+
+.activity-date {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.activity-row strong {
+    text-align: right;
+    font-size: 12px;
+}
+
+.profile-last-solved {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 20px 22px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.student-profile-link {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.student-profile-link:hover {
+    color: var(--accent-2);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Also fixes Add/Edit modal scrolling on shorter screens. */
+.profile-modal {
     overflow-y: auto;
     padding: 24px 16px;
 }
 
 .profile-modal-card {
-    width: min(92vw, 620px);
     max-height: calc(100vh - 48px);
     overflow-y: auto;
     margin: auto;
 }
 
-body.modal-open {
-    overflow: hidden;
+@media (max-width: 800px) {
+    .student-profile-modal {
+        padding: 10px;
+    }
+
+    .student-profile-panel {
+        min-height: calc(100vh - 20px);
+        padding: 16px;
+        border-radius: 20px;
+    }
+
+    .student-profile-hero {
+        grid-template-columns: auto 1fr;
+    }
+
+    .profile-ranks {
+        grid-column: 1 / -1;
+    }
+
+    .profile-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .profile-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .student-profile-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .student-profile-hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .student-avatar {
+        margin: auto;
+    }
+
+    .profile-section-line {
+        justify-content: center;
+    }
+
+    .profile-ranks {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .profile-last-solved {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media print {
+    .student-profile-modal {
+        display: none !important;
+    }
 }
