@@ -568,20 +568,27 @@ def save_challenge_result(
     register_number: str,
     completed: bool,
     completed_at: str | None,
-) -> None:
+) -> bool:
     """
-    Save one student's result without relying on PostgREST on_conflict.
+    Save/update one daily-challenge result.
 
-    We first check whether the row already exists:
-      - existing row -> PATCH it
-      - no row       -> POST it
-
-    This avoids 409 errors caused by PostgREST conflict-target/schema-cache
-    issues around composite UNIQUE constraints.
+    Design:
+    - Uses GET + PATCH/POST instead of PostgREST on_conflict.
+    - Never changes Completed back to Pending.
+    - Returns False instead of crashing the entire LeetCode tracker if
+      the challenge-result write fails.
     """
 
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        return
+        return False
+
+    register_number = clean(register_number)
+
+    if not register_number:
+        print(
+            f"  Challenge {challenge_id}: skipped because register number is empty."
+        )
+        return False
 
     base_url = (
         f"{SUPABASE_URL}/rest/v1/"
@@ -590,93 +597,106 @@ def save_challenge_result(
 
     headers = supabase_headers()
 
-    # Check whether this challenge/student row already exists.
-    lookup = requests.get(
-        base_url,
-        headers=headers,
-        params={
-            "select": "id,completed,completed_at",
-            "challenge_id": f"eq.{challenge_id}",
-            "register_number": f"eq.{register_number}",
-            "limit": "1",
-        },
-        timeout=30,
-    )
-
-    if not lookup.ok:
-        raise RuntimeError(
-            "Daily challenge lookup failed: "
-            f"{lookup.status_code} {lookup.text}"
-        )
-
-    existing_rows = lookup.json()
-
-    # Never turn an already completed result back to Pending.
-    # This is important because a later LeetCode API response may contain
-    # fewer recent submissions than an earlier successful tracker run.
-    existing_completed = False
-    existing_completed_at = None
-
-    if existing_rows:
-        existing_completed = bool(
-            existing_rows[0].get("completed")
-        )
-        existing_completed_at = (
-            existing_rows[0].get("completed_at")
-        )
-
-    final_completed = (
-        existing_completed or completed
-    )
-
-    final_completed_at = (
-        existing_completed_at
-        if existing_completed
-        else completed_at
-    )
-
-    payload = {
-        "completed": final_completed,
-        "completed_at": final_completed_at,
-        "checked_at": datetime.now(IST).isoformat(),
-    }
-
-    if existing_rows:
-        # Update the existing result.
-        response = requests.patch(
+    try:
+        lookup = requests.get(
             base_url,
-            headers={
-                **headers,
-                "Prefer": "return=minimal",
-            },
+            headers=headers,
             params={
+                "select": "id,completed,completed_at",
                 "challenge_id": f"eq.{challenge_id}",
                 "register_number": f"eq.{register_number}",
-            },
-            json=payload,
-            timeout=30,
-        )
-    else:
-        # Insert the result for the first time.
-        response = requests.post(
-            base_url,
-            headers={
-                **headers,
-                "Prefer": "return=minimal",
-            },
-            json={
-                "challenge_id": challenge_id,
-                "register_number": register_number,
-                **payload,
+                "limit": "1",
             },
             timeout=30,
         )
 
-    if not response.ok:
-        raise RuntimeError(
-            "Daily challenge result save failed: "
-            f"{response.status_code} {response.text}"
+        if not lookup.ok:
+            print(
+                "  Daily challenge lookup warning: "
+                f"{lookup.status_code} {lookup.text[:300]}"
+            )
+            return False
+
+        existing_rows = lookup.json()
+
+        existing_completed = False
+        existing_completed_at = None
+
+        if existing_rows:
+            existing_completed = bool(
+                existing_rows[0].get("completed")
+            )
+            existing_completed_at = (
+                existing_rows[0].get("completed_at")
+            )
+
+        final_completed = (
+            existing_completed or completed
         )
+
+        final_completed_at = (
+            existing_completed_at
+            if existing_completed
+            else completed_at
+        )
+
+        payload = {
+            "completed": final_completed,
+            "completed_at": final_completed_at,
+            "checked_at": datetime.now(IST).isoformat(),
+        }
+
+        if existing_rows:
+            response = requests.patch(
+                base_url,
+                headers={
+                    **headers,
+                    "Prefer": "return=minimal",
+                },
+                params={
+                    "challenge_id": f"eq.{challenge_id}",
+                    "register_number": f"eq.{register_number}",
+                },
+                json=payload,
+                timeout=30,
+            )
+        else:
+            response = requests.post(
+                base_url,
+                headers={
+                    **headers,
+                    "Prefer": "return=minimal",
+                },
+                json={
+                    "challenge_id": challenge_id,
+                    "register_number": register_number,
+                    **payload,
+                },
+                timeout=30,
+            )
+
+        if not response.ok:
+            print(
+                "  Daily challenge save warning: "
+                f"{response.status_code} {response.text[:300]}"
+            )
+            return False
+
+        return True
+
+    except requests.RequestException as error:
+        print(
+            "  Daily challenge network warning: "
+            f"{error}"
+        )
+        return False
+
+    except Exception as error:
+        print(
+            "  Daily challenge unexpected warning: "
+            f"{error}"
+        )
+        return False
 
 
 # ============================================================
@@ -719,12 +739,19 @@ def run_one_update() -> None:
                 profile.get("recent_submissions", []),
                 challenge,
             )
-            save_challenge_result(
+            saved = save_challenge_result(
                 int(challenge["id"]),
                 register_number,
                 completed,
                 completed_at,
             )
+
+            if completed:
+                print(
+                    "  Daily Challenge: "
+                    f"{challenge.get('problem_title', challenge.get('problem_slug', ''))} "
+                    f"-> {'Completed ✅' if saved else 'Completed detected; save warning ⚠️'}"
+                )
 
         live_rows.append({
             "Register Number": register_number,
