@@ -38,7 +38,7 @@ RECENT_SUBMISSION_LIMIT = 300
 IST = ZoneInfo("Asia/Kolkata")
 
 # Check up to 10 LeetCode profiles at the same time.
-MAX_WORKERS = 10
+MAX_WORKERS = 20
 
 ALLOWED_SECTIONS = (
     "ECE A",
