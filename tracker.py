@@ -569,28 +569,114 @@ def save_challenge_result(
     completed: bool,
     completed_at: str | None,
 ) -> None:
+    """
+    Save one student's result without relying on PostgREST on_conflict.
+
+    We first check whether the row already exists:
+      - existing row -> PATCH it
+      - no row       -> POST it
+
+    This avoids 409 errors caused by PostgREST conflict-target/schema-cache
+    issues around composite UNIQUE constraints.
+    """
+
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return
 
+    base_url = (
+        f"{SUPABASE_URL}/rest/v1/"
+        "daily_challenge_results"
+    )
+
+    headers = supabase_headers()
+
+    # Check whether this challenge/student row already exists.
+    lookup = requests.get(
+        base_url,
+        headers=headers,
+        params={
+            "select": "id,completed,completed_at",
+            "challenge_id": f"eq.{challenge_id}",
+            "register_number": f"eq.{register_number}",
+            "limit": "1",
+        },
+        timeout=30,
+    )
+
+    if not lookup.ok:
+        raise RuntimeError(
+            "Daily challenge lookup failed: "
+            f"{lookup.status_code} {lookup.text}"
+        )
+
+    existing_rows = lookup.json()
+
+    # Never turn an already completed result back to Pending.
+    # This is important because a later LeetCode API response may contain
+    # fewer recent submissions than an earlier successful tracker run.
+    existing_completed = False
+    existing_completed_at = None
+
+    if existing_rows:
+        existing_completed = bool(
+            existing_rows[0].get("completed")
+        )
+        existing_completed_at = (
+            existing_rows[0].get("completed_at")
+        )
+
+    final_completed = (
+        existing_completed or completed
+    )
+
+    final_completed_at = (
+        existing_completed_at
+        if existing_completed
+        else completed_at
+    )
+
     payload = {
-        "challenge_id": challenge_id,
-        "register_number": register_number,
-        "completed": completed,
-        "completed_at": completed_at,
+        "completed": final_completed,
+        "completed_at": final_completed_at,
         "checked_at": datetime.now(IST).isoformat(),
     }
 
-    response = requests.post(
-        f"{SUPABASE_URL}/rest/v1/daily_challenge_results",
-        headers={
-            **supabase_headers(),
-            "Prefer": "resolution=merge-duplicates,return=minimal",
-        },
-        params={"on_conflict": "challenge_id,register_number"},
-        json=payload,
-        timeout=30,
-    )
-    response.raise_for_status()
+    if existing_rows:
+        # Update the existing result.
+        response = requests.patch(
+            base_url,
+            headers={
+                **headers,
+                "Prefer": "return=minimal",
+            },
+            params={
+                "challenge_id": f"eq.{challenge_id}",
+                "register_number": f"eq.{register_number}",
+            },
+            json=payload,
+            timeout=30,
+        )
+    else:
+        # Insert the result for the first time.
+        response = requests.post(
+            base_url,
+            headers={
+                **headers,
+                "Prefer": "return=minimal",
+            },
+            json={
+                "challenge_id": challenge_id,
+                "register_number": register_number,
+                **payload,
+            },
+            timeout=30,
+        )
+
+    if not response.ok:
+        raise RuntimeError(
+            "Daily challenge result save failed: "
+            f"{response.status_code} {response.text}"
+        )
 
 
 # ============================================================
