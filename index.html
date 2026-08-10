@@ -155,6 +155,10 @@
           Manage Students
         </button>
 
+        <button id="homeFacultyAnalyticsButton" class="action-button secondary" type="button">
+          Faculty Analytics
+        </button>
+
         <button id="homeAdminLogoutButton" class="action-button secondary" type="button">
           Logout
         </button>
@@ -234,6 +238,15 @@
             hidden
           >
             Manage Students
+          </button>
+
+          <button
+            id="facultyAnalyticsButton"
+            class="action-button secondary admin-only"
+            type="button"
+            hidden
+          >
+            Faculty Analytics
           </button>
 
           <button
@@ -496,6 +509,193 @@
     </section>
   </div>
 
+
+
+  <!-- =======================================================
+       ADMIN FACULTY ANALYTICS DASHBOARD
+       ======================================================= -->
+  <div id="facultyAnalyticsModal" class="faculty-analytics-modal" hidden>
+    <div class="faculty-analytics-backdrop" data-close-faculty-analytics></div>
+
+    <section
+      class="faculty-analytics-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="facultyAnalyticsTitle"
+    >
+      <div class="faculty-analytics-toolbar">
+        <div>
+          <span class="analytics-kicker">ADMIN ANALYTICS</span>
+          <h2 id="facultyAnalyticsTitle">Faculty Analytics Dashboard</h2>
+          <p>Department and section-level LeetCode activity insights.</p>
+        </div>
+
+        <button
+          id="closeFacultyAnalytics"
+          class="action-button secondary"
+          type="button"
+        >
+          Close
+        </button>
+      </div>
+
+      <div class="analytics-filter-row">
+        <label for="analyticsSectionFilter">View</label>
+
+        <select id="analyticsSectionFilter" class="form-input">
+          <option value="ALL">All Sections</option>
+          <option value="ECE A">ECE A</option>
+          <option value="ECE B">ECE B</option>
+          <option value="ECE C">ECE C</option>
+          <option value="ECE D">ECE D</option>
+          <option value="ECE E">ECE E</option>
+          <option value="ECE F">ECE F</option>
+        </select>
+
+        <span id="analyticsScopeLabel" class="analytics-scope-label">
+          All Sections
+        </span>
+      </div>
+
+      <div class="analytics-kpi-grid">
+        <article class="analytics-kpi-card">
+          <span>Total Students</span>
+          <strong id="analyticsTotalStudents">0</strong>
+          <small>Profiles in selected scope</small>
+        </article>
+
+        <article class="analytics-kpi-card">
+          <span>Active Today</span>
+          <strong id="analyticsActiveToday">0</strong>
+          <small>Solved at least one today</small>
+        </article>
+
+        <article class="analytics-kpi-card">
+          <span>Active 7 Days</span>
+          <strong id="analyticsActive7Days">0</strong>
+          <small>Recent weekly activity</small>
+        </article>
+
+        <article class="analytics-kpi-card">
+          <span>Inactive 7 Days</span>
+          <strong id="analyticsInactive7Days">0</strong>
+          <small>No activity in last 7 days</small>
+        </article>
+
+        <article class="analytics-kpi-card">
+          <span>30-Day Solves</span>
+          <strong id="analytics30DaySolves">0</strong>
+          <small>Total recent problems</small>
+        </article>
+
+        <article class="analytics-kpi-card">
+          <span>Avg / Student</span>
+          <strong id="analyticsAverage30">0.0</strong>
+          <small>30-day average</small>
+        </article>
+      </div>
+
+      <div class="analytics-grid-two">
+        <article class="analytics-card">
+          <div class="analytics-card-heading">
+            <div>
+              <span class="analytics-kicker">SECTION COMPARISON</span>
+              <h3>30-Day Performance</h3>
+            </div>
+          </div>
+
+          <div id="analyticsSectionBars" class="analytics-bars"></div>
+        </article>
+
+        <article class="analytics-card">
+          <div class="analytics-card-heading">
+            <div>
+              <span class="analytics-kicker">DIFFICULTY</span>
+              <h3>Problem Distribution</h3>
+            </div>
+          </div>
+
+          <div id="analyticsDifficultyBars" class="analytics-bars"></div>
+        </article>
+      </div>
+
+      <div class="analytics-grid-two">
+        <article class="analytics-card">
+          <div class="analytics-card-heading">
+            <div>
+              <span class="analytics-kicker">TOP PERFORMERS</span>
+              <h3>Top 10 · Last 30 Days</h3>
+            </div>
+          </div>
+
+          <div class="analytics-table-wrap">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Student</th>
+                  <th>Section</th>
+                  <th>30 Days</th>
+                  <th>7 Days</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="analyticsTopStudents"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="analytics-card">
+          <div class="analytics-card-heading">
+            <div>
+              <span class="analytics-kicker">ATTENTION</span>
+              <h3>Low / No Recent Activity</h3>
+            </div>
+          </div>
+
+          <div class="analytics-table-wrap">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Section</th>
+                  <th>7 Days</th>
+                  <th>30 Days</th>
+                  <th>Last Solved</th>
+                </tr>
+              </thead>
+              <tbody id="analyticsInactiveStudents"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+
+      <article class="analytics-card analytics-section-table-card">
+        <div class="analytics-card-heading">
+          <div>
+            <span class="analytics-kicker">SECTION SUMMARY</span>
+            <h3>ECE A–F Overview</h3>
+          </div>
+        </div>
+
+        <div class="analytics-table-wrap">
+          <table class="analytics-table">
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Students</th>
+                <th>Active Today</th>
+                <th>Active 7 Days</th>
+                <th>30-Day Solves</th>
+                <th>Avg / Student</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsSectionSummary"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </div>
 
   <!-- =======================================================
        PUBLIC STUDENT PROGRESS PROFILE

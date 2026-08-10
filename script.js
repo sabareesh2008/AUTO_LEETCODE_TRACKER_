@@ -51,6 +51,8 @@ const manageStudentsButton = document.getElementById("manageStudentsButton");
 const homeAddProfileButton = document.getElementById("homeAddProfileButton");
 const homeSyncNowButton = document.getElementById("homeSyncNowButton");
 const homeManageStudentsButton = document.getElementById("homeManageStudentsButton");
+const homeFacultyAnalyticsButton = document.getElementById("homeFacultyAnalyticsButton");
+const facultyAnalyticsButton = document.getElementById("facultyAnalyticsButton");
 
 const profileModal = document.getElementById("profileModal");
 const profileForm = document.getElementById("profileForm");
@@ -1130,6 +1132,409 @@ function downloadPDF() {
 
 
 
+
+// ============================================================
+// ADMIN FACULTY ANALYTICS DASHBOARD
+// ============================================================
+
+const facultyAnalyticsModal =
+  document.getElementById("facultyAnalyticsModal");
+
+const closeFacultyAnalyticsButton =
+  document.getElementById("closeFacultyAnalytics");
+
+const analyticsSectionFilter =
+  document.getElementById("analyticsSectionFilter");
+
+function getAnalyticsStudents() {
+  const section = analyticsSectionFilter.value;
+
+  if (section === "ALL") {
+    return [...allStudents];
+  }
+
+  return allStudents.filter(
+    (student) =>
+      normalizeSection(student.Section) === section
+  );
+}
+
+function renderAnalyticsKpis(students) {
+  const total = students.length;
+
+  const activeToday = students.filter(
+    (student) => toNumber(student["Solved Today"]) > 0
+  ).length;
+
+  const active7 = students.filter(
+    (student) => toNumber(student["Last 7 Days"]) > 0
+  ).length;
+
+  const inactive7 = Math.max(0, total - active7);
+
+  const total30 = students.reduce(
+    (sum, student) =>
+      sum + toNumber(student["Last 30 Days"]),
+    0
+  );
+
+  const average30 =
+    total > 0 ? total30 / total : 0;
+
+  document.getElementById("analyticsTotalStudents").textContent =
+    total;
+
+  document.getElementById("analyticsActiveToday").textContent =
+    activeToday;
+
+  document.getElementById("analyticsActive7Days").textContent =
+    active7;
+
+  document.getElementById("analyticsInactive7Days").textContent =
+    inactive7;
+
+  document.getElementById("analytics30DaySolves").textContent =
+    total30;
+
+  document.getElementById("analyticsAverage30").textContent =
+    average30.toFixed(1);
+}
+
+function renderAnalyticsSectionBars() {
+  const rows = SECTION_NAMES.map((section) => {
+    const students = allStudents.filter(
+      (student) =>
+        normalizeSection(student.Section) === section
+    );
+
+    const value = students.reduce(
+      (sum, student) =>
+        sum + toNumber(student["Last 30 Days"]),
+      0
+    );
+
+    return {
+      label: section,
+      value
+    };
+  });
+
+  const maximum = Math.max(
+    1,
+    ...rows.map((row) => row.value)
+  );
+
+  document.getElementById("analyticsSectionBars").innerHTML =
+    rows.map((row) => `
+      <div class="analytics-bar-row">
+        <span>${escapeHTML(row.label)}</span>
+
+        <div class="analytics-bar-track">
+          <span
+            class="analytics-bar-fill"
+            style="width:${row.value ? Math.max(4, row.value / maximum * 100) : 0}%"
+          ></span>
+        </div>
+
+        <strong>${row.value}</strong>
+      </div>
+    `).join("");
+}
+
+function renderAnalyticsDifficulty(students) {
+  const totals = [
+    {
+      label: "Easy",
+      value: students.reduce(
+        (sum, student) => sum + toNumber(student.Easy),
+        0
+      )
+    },
+    {
+      label: "Medium",
+      value: students.reduce(
+        (sum, student) => sum + toNumber(student.Medium),
+        0
+      )
+    },
+    {
+      label: "Hard",
+      value: students.reduce(
+        (sum, student) => sum + toNumber(student.Hard),
+        0
+      )
+    }
+  ];
+
+  const maximum = Math.max(
+    1,
+    ...totals.map((item) => item.value)
+  );
+
+  document.getElementById("analyticsDifficultyBars").innerHTML =
+    totals.map((item) => `
+      <div class="analytics-bar-row">
+        <span>${item.label}</span>
+
+        <div class="analytics-bar-track">
+          <span
+            class="analytics-bar-fill analytics-${item.label.toLowerCase()}"
+            style="width:${item.value ? Math.max(4, item.value / maximum * 100) : 0}%"
+          ></span>
+        </div>
+
+        <strong>${item.value}</strong>
+      </div>
+    `).join("");
+}
+
+function renderAnalyticsTopStudents(students) {
+  const rows = [...students]
+    .sort((a, b) =>
+      toNumber(b["Last 30 Days"]) - toNumber(a["Last 30 Days"])
+      || toNumber(b["Last 7 Days"]) - toNumber(a["Last 7 Days"])
+      || toNumber(b["Problems Solved"]) - toNumber(a["Problems Solved"])
+      || String(a["Student Name"]).localeCompare(String(b["Student Name"]))
+    )
+    .slice(0, 10);
+
+  const body =
+    document.getElementById("analyticsTopStudents");
+
+  if (!rows.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" class="analytics-empty">
+          No students in this scope.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  body.innerHTML = rows.map((student, index) => `
+    <tr>
+      <td><strong>#${index + 1}</strong></td>
+
+      <td>
+        <button
+          type="button"
+          class="analytics-student-link"
+          data-analytics-profile="${escapeHTML(student["Register Number"])}"
+        >
+          ${escapeHTML(student["Student Name"])}
+        </button>
+      </td>
+
+      <td>${escapeHTML(student.Section)}</td>
+      <td><strong>${toNumber(student["Last 30 Days"])}</strong></td>
+      <td>${toNumber(student["Last 7 Days"])}</td>
+      <td>${toNumber(student["Problems Solved"])}</td>
+    </tr>
+  `).join("");
+}
+
+function renderAnalyticsInactiveStudents(students) {
+  const rows = [...students]
+    .filter(
+      (student) =>
+        toNumber(student["Last 7 Days"]) === 0
+    )
+    .sort((a, b) =>
+      toNumber(a["Last 30 Days"]) - toNumber(b["Last 30 Days"])
+      || String(a["Student Name"]).localeCompare(String(b["Student Name"]))
+    )
+    .slice(0, 20);
+
+  const body =
+    document.getElementById("analyticsInactiveStudents");
+
+  if (!rows.length) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="5" class="analytics-empty">
+          No inactive students in this scope.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  body.innerHTML = rows.map((student) => `
+    <tr>
+      <td>
+        <button
+          type="button"
+          class="analytics-student-link"
+          data-analytics-profile="${escapeHTML(student["Register Number"])}"
+        >
+          ${escapeHTML(student["Student Name"])}
+        </button>
+      </td>
+
+      <td>${escapeHTML(student.Section)}</td>
+      <td>${toNumber(student["Last 7 Days"])}</td>
+      <td>${toNumber(student["Last 30 Days"])}</td>
+      <td>${escapeHTML(student["Last Solved"] || "–")}</td>
+    </tr>
+  `).join("");
+}
+
+function renderAnalyticsSectionSummary() {
+  const body =
+    document.getElementById("analyticsSectionSummary");
+
+  body.innerHTML = SECTION_NAMES.map((section) => {
+    const students = allStudents.filter(
+      (student) =>
+        normalizeSection(student.Section) === section
+    );
+
+    const total30 = students.reduce(
+      (sum, student) =>
+        sum + toNumber(student["Last 30 Days"]),
+      0
+    );
+
+    const activeToday = students.filter(
+      (student) =>
+        toNumber(student["Solved Today"]) > 0
+    ).length;
+
+    const active7 = students.filter(
+      (student) =>
+        toNumber(student["Last 7 Days"]) > 0
+    ).length;
+
+    const average =
+      students.length > 0
+        ? total30 / students.length
+        : 0;
+
+    return `
+      <tr>
+        <td><strong>${escapeHTML(section)}</strong></td>
+        <td>${students.length}</td>
+        <td>${activeToday}</td>
+        <td>${active7}</td>
+        <td>${total30}</td>
+        <td>${average.toFixed(1)}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderFacultyAnalytics() {
+  const students = getAnalyticsStudents();
+
+  const section =
+    analyticsSectionFilter.value;
+
+  document.getElementById("analyticsScopeLabel").textContent =
+    section === "ALL"
+      ? "All Sections"
+      : section;
+
+  renderAnalyticsKpis(students);
+  renderAnalyticsSectionBars();
+  renderAnalyticsDifficulty(students);
+  renderAnalyticsTopStudents(students);
+  renderAnalyticsInactiveStudents(students);
+  renderAnalyticsSectionSummary();
+}
+
+function openFacultyAnalytics() {
+  if (!isAdmin()) {
+    return;
+  }
+
+  if (
+    selectedSection
+    && selectedSection !== "OVERALL"
+  ) {
+    analyticsSectionFilter.value =
+      selectedSection;
+  } else {
+    analyticsSectionFilter.value =
+      "ALL";
+  }
+
+  renderFacultyAnalytics();
+
+  facultyAnalyticsModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeFacultyAnalytics() {
+  facultyAnalyticsModal.hidden = true;
+
+  const anotherModalOpen = [
+    adminLoginModal,
+    profileModal,
+    manageStudentsModal,
+    deleteModal,
+    studentProfileModal
+  ].some(
+    (modal) =>
+      modal && !modal.hidden
+  );
+
+  if (!anotherModalOpen) {
+    document.body.classList.remove(
+      "modal-open"
+    );
+  }
+}
+
+facultyAnalyticsButton.addEventListener(
+  "click",
+  openFacultyAnalytics
+);
+
+homeFacultyAnalyticsButton.addEventListener(
+  "click",
+  openFacultyAnalytics
+);
+
+closeFacultyAnalyticsButton.addEventListener(
+  "click",
+  closeFacultyAnalytics
+);
+
+facultyAnalyticsModal
+  .querySelectorAll("[data-close-faculty-analytics]")
+  .forEach((element) =>
+    element.addEventListener(
+      "click",
+      closeFacultyAnalytics
+    )
+  );
+
+analyticsSectionFilter.addEventListener(
+  "change",
+  renderFacultyAnalytics
+);
+
+facultyAnalyticsModal.addEventListener(
+  "click",
+  (event) => {
+    const button =
+      event.target.closest(
+        "[data-analytics-profile]"
+      );
+
+    if (!button) {
+      return;
+    }
+
+    closeFacultyAnalytics();
+
+    openStudentProfile(
+      button.dataset.analyticsProfile
+    );
+  }
+);
+
 // ============================================================
 // PUBLIC STUDENT PROGRESS PROFILE
 // ============================================================
@@ -1654,6 +2059,7 @@ document.addEventListener("keydown", (event) => {
   manageStudentsModal.hidden = true;
   deleteModal.hidden = true;
   studentProfileModal.hidden = true;
+  facultyAnalyticsModal.hidden = true;
   document.body.classList.remove("modal-open");
 });
 
