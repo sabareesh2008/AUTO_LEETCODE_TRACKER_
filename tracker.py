@@ -1750,6 +1750,14 @@ def run_one_update() -> None:
         f"Students: "
         f"{total_students}"
     )
+    # Load shared data BEFORE printing/using it.
+    previous_history = load_history()
+    previous_activity = load_daily_activity_file()
+
+    # Load challenge definitions once.
+    # The same read-only list is shared safely across all workers.
+    recent_challenges = load_recent_challenges()
+
     print(
         f"Parallel workers: "
         f"{worker_count}"
@@ -1759,13 +1767,6 @@ def run_one_update() -> None:
         f"{len(recent_challenges)}"
     )
     print("=" * 64)
-
-    previous_history = load_history()
-    previous_activity = load_daily_activity_file()
-
-    # Load challenge definitions once.
-    # The same read-only list is shared safely across all workers.
-    recent_challenges = load_recent_challenges()
 
     futures = {}
 
