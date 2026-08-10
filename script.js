@@ -394,22 +394,76 @@ function renderSectionChampionship() {
   }).join("");
 }
 
-document
-  .getElementById("championshipCard")
-  .addEventListener("click", (event) => {
-    const card = event.target.closest(
-      "[data-championship-section]"
+
+function updateCurrentChampionBadge() {
+  const sectionRanking = SECTION_NAMES.map((section) => {
+    const students = allStudents.filter(
+      (student) =>
+        normalizeSection(student.Section) === normalizeSection(section)
     );
 
-    if (!card) {
-      return;
-    }
+    const last30 = students.reduce(
+      (sum, student) =>
+        sum + toNumber(student["Last 30 Days"]),
+      0
+    );
 
-    const section =
-      card.dataset.championshipSection;
+    const last7 = students.reduce(
+      (sum, student) =>
+        sum + toNumber(student["Last 7 Days"]),
+      0
+    );
 
-    openSection(section);
-  });
+    const active = students.filter(
+      (student) =>
+        toNumber(student["Last 30 Days"]) > 0
+    ).length;
+
+    const average =
+      students.length > 0
+        ? last30 / students.length
+        : 0;
+
+    return {
+      section,
+      students: students.length,
+      last30,
+      last7,
+      active,
+      average
+    };
+  }).sort((a, b) =>
+    b.last30 - a.last30
+    || b.last7 - a.last7
+    || b.active - a.active
+    || b.average - a.average
+    || a.section.localeCompare(b.section)
+  );
+
+  const champion = sectionRanking.find(
+    (item) => item.students > 0
+  );
+
+  const sectionElement =
+    document.getElementById("currentChampionSection");
+
+  const scoreElement =
+    document.getElementById("currentChampionScore");
+
+  if (!sectionElement || !scoreElement) {
+    return;
+  }
+
+  if (!champion) {
+    sectionElement.textContent = "No data";
+    scoreElement.textContent = "Waiting for student activity";
+    return;
+  }
+
+  sectionElement.textContent = champion.section;
+  scoreElement.textContent =
+    `${champion.last30} problems in last 30 days`;
+}
 
 function updateSectionCounts() {
   const counts = {
@@ -435,7 +489,9 @@ function updateSectionCounts() {
   document.getElementById("countECEF").textContent = counts["ECE F"];
   document.getElementById("countOverall").textContent = allStudents.length;
 
-  renderSectionChampionship();
+
+
+  updateCurrentChampionBadge();
 }
 
 
@@ -1146,15 +1202,6 @@ function downloadPDF() {
 // PUBLIC CHAMPIONS VIEW
 // ============================================================
 
-const championsCardButton =
-  document.getElementById("championsCardButton");
-
-const championsModal =
-  document.getElementById("championsModal");
-
-const closeChampionsButton =
-  document.getElementById("closeChampionsButton");
-
 function compareChampionStudents(a, b) {
   return (
     toNumber(b["Last 30 Days"]) - toNumber(a["Last 30 Days"])
@@ -1166,20 +1213,119 @@ function compareChampionStudents(a, b) {
   );
 }
 
+function calculateChampionsSectionRanking() {
+  return SECTION_NAMES.map((section) => {
+    const students = allStudents.filter(
+      (student) =>
+        normalizeSection(student.Section) === normalizeSection(section)
+    );
+
+    const last30 = students.reduce(
+      (sum, student) => sum + toNumber(student["Last 30 Days"]),
+      0
+    );
+
+    const last7 = students.reduce(
+      (sum, student) => sum + toNumber(student["Last 7 Days"]),
+      0
+    );
+
+    const active = students.filter(
+      (student) => toNumber(student["Last 30 Days"]) > 0
+    ).length;
+
+    const average =
+      students.length > 0 ? last30 / students.length : 0;
+
+    return {
+      section,
+      students: students.length,
+      last30,
+      last7,
+      active,
+      average
+    };
+  }).sort((a, b) =>
+    b.last30 - a.last30
+    || b.last7 - a.last7
+    || b.active - a.active
+    || b.average - a.average
+    || a.section.localeCompare(b.section)
+  );
+}
+
+function championRankBadge(rank) {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return `#${rank}`;
+}
+
+function renderChampionsSectionRanking() {
+  const container =
+    document.getElementById("championsSectionRanking");
+
+  if (!container) return;
+
+  const ranking = calculateChampionsSectionRanking();
+
+  container.innerHTML = ranking.map((item, index) => `
+    <button
+      type="button"
+      class="champions-rank-card"
+      data-open-section="${escapeHTML(item.section)}"
+    >
+      <div class="champions-rank-card-top">
+        <span class="champions-rank-badge">
+          ${championRankBadge(index + 1)}
+        </span>
+
+        <strong>${escapeHTML(item.section)}</strong>
+      </div>
+
+      <div class="champions-rank-stats">
+        <span>
+          <small>30 Days</small>
+          <strong>${item.last30}</strong>
+        </span>
+
+        <span>
+          <small>7 Days</small>
+          <strong>${item.last7}</strong>
+        </span>
+
+        <span>
+          <small>Active</small>
+          <strong>${item.active}</strong>
+        </span>
+
+        <span>
+          <small>Students</small>
+          <strong>${item.students}</strong>
+        </span>
+      </div>
+
+      <div class="champions-rank-average">
+        Avg / Student: <strong>${item.average.toFixed(1)}</strong>
+      </div>
+    </button>
+  `).join("");
+}
+
 function getSectionChampion(section) {
-  const students = allStudents
+  return [...allStudents]
     .filter(
       (student) =>
         normalizeSection(student.Section) === normalizeSection(section)
     )
-    .sort(compareChampionStudents);
-
-  return students[0] || null;
+    .sort(compareChampionStudents)[0] || null;
 }
 
 function renderSectionChampions() {
   const grid =
     document.getElementById("sectionChampionsGrid");
+
+  if (!grid) return;
 
   grid.innerHTML = SECTION_NAMES.map((section) => {
     const champion = getSectionChampion(section);
@@ -1210,7 +1356,6 @@ function renderSectionChampions() {
         </div>
 
         <h4>${escapeHTML(champion["Student Name"])}</h4>
-
         <p>${escapeHTML(champion["Register Number"])}</p>
 
         <div class="section-champion-metrics">
@@ -1237,17 +1382,19 @@ function renderSectionChampions() {
 }
 
 function renderOverallTopFive() {
+  const container =
+    document.getElementById("overallTopFive");
+
+  if (!container) return;
+
   const students = [...allStudents]
     .sort(compareChampionStudents)
     .slice(0, 5);
 
-  const container =
-    document.getElementById("overallTopFive");
-
   if (!students.length) {
     container.innerHTML = `
       <div class="champions-empty">
-        No student data available yet.
+        No student data available.
       </div>
     `;
     return;
@@ -1255,11 +1402,6 @@ function renderOverallTopFive() {
 
   container.innerHTML = students.map((student, index) => {
     const rank = index + 1;
-    const medal =
-      rank === 1 ? "🥇"
-      : rank === 2 ? "🥈"
-      : rank === 3 ? "🥉"
-      : `#${rank}`;
 
     return `
       <button
@@ -1267,13 +1409,15 @@ function renderOverallTopFive() {
         class="overall-top-student top-student-${rank}"
         data-champion-profile="${escapeHTML(student["Register Number"])}"
       >
-        <span class="overall-top-rank">${medal}</span>
+        <span class="overall-top-rank">
+          ${championRankBadge(rank)}
+        </span>
 
         <div class="overall-top-identity">
           <strong>${escapeHTML(student["Student Name"])}</strong>
           <span>
-            ${escapeHTML(student.Section)} ·
-            ${escapeHTML(student["Register Number"])}
+            ${escapeHTML(student.Section || "–")}
+            · ${escapeHTML(student["Register Number"])}
           </span>
         </div>
 
@@ -1299,96 +1443,116 @@ function renderOverallTopFive() {
 }
 
 function renderChampions() {
+  renderChampionsSectionRanking();
   renderSectionChampions();
   renderOverallTopFive();
 }
 
 function openChampions() {
+  const modal =
+    document.getElementById("championsModal");
+
+  if (!modal) return;
+
   renderChampions();
 
-  championsModal.hidden = false;
+  modal.hidden = false;
   document.body.classList.add("modal-open");
 }
 
 function closeChampions() {
-  championsModal.hidden = true;
+  const modal =
+    document.getElementById("championsModal");
 
-  const anotherModalOpen = [
-    adminLoginModal,
-    profileModal,
-    manageStudentsModal,
-    deleteModal,
-    studentProfileModal,
-    facultyAnalyticsModal
-  ].some(
-    (modal) => modal && !modal.hidden
+  if (!modal) return;
+
+  modal.hidden = true;
+
+  const anyOpenModal = document.querySelector(
+    ".profile-modal:not([hidden]),"
+    + ".student-profile-modal:not([hidden]),"
+    + ".faculty-analytics-modal:not([hidden]),"
+    + ".champions-modal:not([hidden])"
   );
 
-  if (!anotherModalOpen) {
+  if (!anyOpenModal) {
     document.body.classList.remove("modal-open");
   }
 }
 
-if (championsCardButton) {
-  championsCardButton.addEventListener(
+const championsHomeButton =
+  document.getElementById("championsCardButton");
+
+if (championsHomeButton) {
+  championsHomeButton.addEventListener(
     "click",
     openChampions
   );
 }
 
-if (closeChampionsButton) {
-  closeChampionsButton.addEventListener(
+const championsCloseButton =
+  document.getElementById("closeChampionsButton");
+
+if (championsCloseButton) {
+  championsCloseButton.addEventListener(
     "click",
     closeChampions
   );
 }
 
-if (championsModal) {
-  championsModal
+const championsModalElement =
+  document.getElementById("championsModal");
+
+if (championsModalElement) {
+  championsModalElement
     .querySelectorAll("[data-close-champions]")
-    .forEach((element) =>
+    .forEach((element) => {
       element.addEventListener(
         "click",
         closeChampions
-      )
-    );
+      );
+    });
 
-  championsModal.addEventListener(
+  championsModalElement.addEventListener(
     "click",
     (event) => {
-      const target =
-        event.target.closest(
-          "[data-champion-profile]"
-        );
+      const profileTarget =
+        event.target.closest("[data-champion-profile]");
 
-      if (!target) {
+      if (profileTarget) {
+        const registerNumber =
+          profileTarget.dataset.championProfile;
+
+        closeChampions();
+        openStudentProfile(registerNumber);
         return;
       }
 
-      closeChampions();
+      const sectionTarget =
+        event.target.closest("[data-open-section]");
 
-      openStudentProfile(
-        target.dataset.championProfile
-      );
+      if (sectionTarget) {
+        const section =
+          sectionTarget.dataset.openSection;
+
+        closeChampions();
+        openSection(section);
+      }
     }
   );
 }
+
 
 // ============================================================
 // ADMIN FACULTY ANALYTICS DASHBOARD
 // ============================================================
 
-const facultyAnalyticsModal =
-  document.getElementById("facultyAnalyticsModal");
+function getFacultyAnalyticsStudents() {
+  const filter =
+    document.getElementById("analyticsSectionFilter");
 
-const closeFacultyAnalyticsButton =
-  document.getElementById("closeFacultyAnalytics");
-
-const analyticsSectionFilter =
-  document.getElementById("analyticsSectionFilter");
-
-function getAnalyticsStudents() {
-  const section = analyticsSectionFilter.value;
+  const section =
+    filter ? filter.value : "ALL";
 
   if (section === "ALL") {
     return [...allStudents];
@@ -1396,151 +1560,156 @@ function getAnalyticsStudents() {
 
   return allStudents.filter(
     (student) =>
-      normalizeSection(student.Section) === section
+      normalizeSection(student.Section) === normalizeSection(section)
   );
 }
 
-function renderAnalyticsKpis(students) {
-  const total = students.length;
+function renderFacultyAnalyticsKpis(students) {
+  const totalStudents = students.length;
 
   const activeToday = students.filter(
     (student) => toNumber(student["Solved Today"]) > 0
   ).length;
 
-  const active7 = students.filter(
+  const active7Days = students.filter(
     (student) => toNumber(student["Last 7 Days"]) > 0
   ).length;
 
-  const inactive7 = Math.max(0, total - active7);
+  const inactive7Days =
+    Math.max(0, totalStudents - active7Days);
 
-  const total30 = students.reduce(
+  const solves30Days = students.reduce(
     (sum, student) =>
       sum + toNumber(student["Last 30 Days"]),
     0
   );
 
   const average30 =
-    total > 0 ? total30 / total : 0;
+    totalStudents > 0
+      ? solves30Days / totalStudents
+      : 0;
 
   document.getElementById("analyticsTotalStudents").textContent =
-    total;
+    totalStudents;
 
   document.getElementById("analyticsActiveToday").textContent =
     activeToday;
 
   document.getElementById("analyticsActive7Days").textContent =
-    active7;
+    active7Days;
 
   document.getElementById("analyticsInactive7Days").textContent =
-    inactive7;
+    inactive7Days;
 
   document.getElementById("analytics30DaySolves").textContent =
-    total30;
+    solves30Days;
 
   document.getElementById("analyticsAverage30").textContent =
     average30.toFixed(1);
 }
 
-function renderAnalyticsSectionBars() {
-  const rows = SECTION_NAMES.map((section) => {
+function renderFacultySectionBars() {
+  const sectionData = SECTION_NAMES.map((section) => {
     const students = allStudents.filter(
       (student) =>
-        normalizeSection(student.Section) === section
-    );
-
-    const value = students.reduce(
-      (sum, student) =>
-        sum + toNumber(student["Last 30 Days"]),
-      0
+        normalizeSection(student.Section) === normalizeSection(section)
     );
 
     return {
-      label: section,
-      value
+      section,
+      value: students.reduce(
+        (sum, student) =>
+          sum + toNumber(student["Last 30 Days"]),
+        0
+      )
     };
   });
 
   const maximum = Math.max(
     1,
-    ...rows.map((row) => row.value)
+    ...sectionData.map((item) => item.value)
   );
 
-  document.getElementById("analyticsSectionBars").innerHTML =
-    rows.map((row) => `
-      <div class="analytics-bar-row">
-        <span>${escapeHTML(row.label)}</span>
+  const container =
+    document.getElementById("analyticsSectionBars");
 
-        <div class="analytics-bar-track">
-          <span
-            class="analytics-bar-fill"
-            style="width:${row.value ? Math.max(4, row.value / maximum * 100) : 0}%"
-          ></span>
-        </div>
+  if (!container) return;
 
-        <strong>${row.value}</strong>
+  container.innerHTML = sectionData.map((item) => `
+    <div class="analytics-bar-row">
+      <span>${escapeHTML(item.section)}</span>
+
+      <div class="analytics-bar-track">
+        <span
+          class="analytics-bar-fill"
+          style="width:${
+            item.value
+              ? Math.max(4, item.value / maximum * 100)
+              : 0
+          }%"
+        ></span>
       </div>
-    `).join("");
+
+      <strong>${item.value}</strong>
+    </div>
+  `).join("");
 }
 
-function renderAnalyticsDifficulty(students) {
-  const totals = [
-    {
-      label: "Easy",
-      value: students.reduce(
-        (sum, student) => sum + toNumber(student.Easy),
-        0
-      )
-    },
-    {
-      label: "Medium",
-      value: students.reduce(
-        (sum, student) => sum + toNumber(student.Medium),
-        0
-      )
-    },
-    {
-      label: "Hard",
-      value: students.reduce(
-        (sum, student) => sum + toNumber(student.Hard),
-        0
-      )
-    }
+function renderFacultyDifficulty(students) {
+  const values = [
+    ["Easy", students.reduce(
+      (sum, student) => sum + toNumber(student.Easy),
+      0
+    )],
+    ["Medium", students.reduce(
+      (sum, student) => sum + toNumber(student.Medium),
+      0
+    )],
+    ["Hard", students.reduce(
+      (sum, student) => sum + toNumber(student.Hard),
+      0
+    )]
   ];
 
   const maximum = Math.max(
     1,
-    ...totals.map((item) => item.value)
+    ...values.map((item) => item[1])
   );
 
-  document.getElementById("analyticsDifficultyBars").innerHTML =
-    totals.map((item) => `
-      <div class="analytics-bar-row">
-        <span>${item.label}</span>
+  const container =
+    document.getElementById("analyticsDifficultyBars");
 
-        <div class="analytics-bar-track">
-          <span
-            class="analytics-bar-fill analytics-${item.label.toLowerCase()}"
-            style="width:${item.value ? Math.max(4, item.value / maximum * 100) : 0}%"
-          ></span>
-        </div>
+  if (!container) return;
 
-        <strong>${item.value}</strong>
+  container.innerHTML = values.map(([label, value]) => `
+    <div class="analytics-bar-row">
+      <span>${label}</span>
+
+      <div class="analytics-bar-track">
+        <span
+          class="analytics-bar-fill analytics-${label.toLowerCase()}"
+          style="width:${
+            value
+              ? Math.max(4, value / maximum * 100)
+              : 0
+          }%"
+        ></span>
       </div>
-    `).join("");
+
+      <strong>${value}</strong>
+    </div>
+  `).join("");
 }
 
-function renderAnalyticsTopStudents(students) {
-  const rows = [...students]
-    .sort((a, b) =>
-      toNumber(b["Last 30 Days"]) - toNumber(a["Last 30 Days"])
-      || toNumber(b["Last 7 Days"]) - toNumber(a["Last 7 Days"])
-      || toNumber(b["Problems Solved"]) - toNumber(a["Problems Solved"])
-      || String(a["Student Name"]).localeCompare(String(b["Student Name"]))
-    )
-    .slice(0, 10);
-
+function renderFacultyTopStudents(students) {
   const body =
     document.getElementById("analyticsTopStudents");
+
+  if (!body) return;
+
+  const rows = [...students]
+    .sort(compareChampionStudents)
+    .slice(0, 10);
 
   if (!rows.length) {
     body.innerHTML = `
@@ -1567,7 +1736,7 @@ function renderAnalyticsTopStudents(students) {
         </button>
       </td>
 
-      <td>${escapeHTML(student.Section)}</td>
+      <td>${escapeHTML(student.Section || "–")}</td>
       <td><strong>${toNumber(student["Last 30 Days"])}</strong></td>
       <td>${toNumber(student["Last 7 Days"])}</td>
       <td>${toNumber(student["Problems Solved"])}</td>
@@ -1575,7 +1744,12 @@ function renderAnalyticsTopStudents(students) {
   `).join("");
 }
 
-function renderAnalyticsInactiveStudents(students) {
+function renderFacultyInactiveStudents(students) {
+  const body =
+    document.getElementById("analyticsInactiveStudents");
+
+  if (!body) return;
+
   const rows = [...students]
     .filter(
       (student) =>
@@ -1583,12 +1757,11 @@ function renderAnalyticsInactiveStudents(students) {
     )
     .sort((a, b) =>
       toNumber(a["Last 30 Days"]) - toNumber(b["Last 30 Days"])
-      || String(a["Student Name"]).localeCompare(String(b["Student Name"]))
+      || String(a["Student Name"] || "").localeCompare(
+        String(b["Student Name"] || "")
+      )
     )
     .slice(0, 20);
-
-  const body =
-    document.getElementById("analyticsInactiveStudents");
 
   if (!rows.length) {
     body.innerHTML = `
@@ -1613,7 +1786,7 @@ function renderAnalyticsInactiveStudents(students) {
         </button>
       </td>
 
-      <td>${escapeHTML(student.Section)}</td>
+      <td>${escapeHTML(student.Section || "–")}</td>
       <td>${toNumber(student["Last 7 Days"])}</td>
       <td>${toNumber(student["Last 30 Days"])}</td>
       <td>${escapeHTML(student["Last Solved"] || "–")}</td>
@@ -1621,20 +1794,16 @@ function renderAnalyticsInactiveStudents(students) {
   `).join("");
 }
 
-function renderAnalyticsSectionSummary() {
+function renderFacultySectionSummary() {
   const body =
     document.getElementById("analyticsSectionSummary");
+
+  if (!body) return;
 
   body.innerHTML = SECTION_NAMES.map((section) => {
     const students = allStudents.filter(
       (student) =>
-        normalizeSection(student.Section) === section
-    );
-
-    const total30 = students.reduce(
-      (sum, student) =>
-        sum + toNumber(student["Last 30 Days"]),
-      0
+        normalizeSection(student.Section) === normalizeSection(section)
     );
 
     const activeToday = students.filter(
@@ -1646,6 +1815,12 @@ function renderAnalyticsSectionSummary() {
       (student) =>
         toNumber(student["Last 7 Days"]) > 0
     ).length;
+
+    const total30 = students.reduce(
+      (sum, student) =>
+        sum + toNumber(student["Last 30 Days"]),
+      0
+    );
 
     const average =
       students.length > 0
@@ -1666,22 +1841,31 @@ function renderAnalyticsSectionSummary() {
 }
 
 function renderFacultyAnalytics() {
-  const students = getAnalyticsStudents();
+  const students =
+    getFacultyAnalyticsStudents();
 
-  const section =
-    analyticsSectionFilter.value;
+  const filter =
+    document.getElementById("analyticsSectionFilter");
 
-  document.getElementById("analyticsScopeLabel").textContent =
-    section === "ALL"
-      ? "All Sections"
-      : section;
+  const scope =
+    filter ? filter.value : "ALL";
 
-  renderAnalyticsKpis(students);
-  renderAnalyticsSectionBars();
-  renderAnalyticsDifficulty(students);
-  renderAnalyticsTopStudents(students);
-  renderAnalyticsInactiveStudents(students);
-  renderAnalyticsSectionSummary();
+  const label =
+    document.getElementById("analyticsScopeLabel");
+
+  if (label) {
+    label.textContent =
+      scope === "ALL"
+        ? "All Sections"
+        : scope;
+  }
+
+  renderFacultyAnalyticsKpis(students);
+  renderFacultySectionBars();
+  renderFacultyDifficulty(students);
+  renderFacultyTopStudents(students);
+  renderFacultyInactiveStudents(students);
+  renderFacultySectionSummary();
 }
 
 function openFacultyAnalytics() {
@@ -1689,96 +1873,123 @@ function openFacultyAnalytics() {
     return;
   }
 
+  const modal =
+    document.getElementById("facultyAnalyticsModal");
+
+  const filter =
+    document.getElementById("analyticsSectionFilter");
+
+  if (!modal || !filter) {
+    console.error("Faculty Analytics UI elements are missing.");
+    return;
+  }
+
   if (
     selectedSection
     && selectedSection !== "OVERALL"
   ) {
-    analyticsSectionFilter.value =
-      selectedSection;
+    filter.value =
+      normalizeSection(selectedSection);
   } else {
-    analyticsSectionFilter.value =
-      "ALL";
+    filter.value = "ALL";
   }
 
   renderFacultyAnalytics();
 
-  facultyAnalyticsModal.hidden = false;
+  modal.hidden = false;
   document.body.classList.add("modal-open");
 }
 
 function closeFacultyAnalytics() {
-  facultyAnalyticsModal.hidden = true;
+  const modal =
+    document.getElementById("facultyAnalyticsModal");
 
-  const anotherModalOpen = [
-    adminLoginModal,
-    profileModal,
-    manageStudentsModal,
-    deleteModal,
-    studentProfileModal
-  ].some(
-    (modal) =>
-      modal && !modal.hidden
+  if (!modal) return;
+
+  modal.hidden = true;
+
+  const anyOpenModal = document.querySelector(
+    ".profile-modal:not([hidden]),"
+    + ".student-profile-modal:not([hidden]),"
+    + ".faculty-analytics-modal:not([hidden]),"
+    + ".champions-modal:not([hidden])"
   );
 
-  if (!anotherModalOpen) {
-    document.body.classList.remove(
-      "modal-open"
-    );
+  if (!anyOpenModal) {
+    document.body.classList.remove("modal-open");
   }
 }
 
-if (facultyAnalyticsButton) {
-  facultyAnalyticsButton.addEventListener(
+const facultyButton =
+  document.getElementById("facultyAnalyticsButton");
+
+const homeFacultyButton =
+  document.getElementById("homeFacultyAnalyticsButton");
+
+if (facultyButton) {
+  facultyButton.addEventListener(
     "click",
     openFacultyAnalytics
   );
 }
 
-if (homeFacultyAnalyticsButton) {
-  homeFacultyAnalyticsButton.addEventListener(
+if (homeFacultyButton) {
+  homeFacultyButton.addEventListener(
     "click",
     openFacultyAnalytics
   );
 }
 
-closeFacultyAnalyticsButton.addEventListener(
-  "click",
-  closeFacultyAnalytics
-);
+const facultyCloseButton =
+  document.getElementById("closeFacultyAnalytics");
 
-facultyAnalyticsModal
-  .querySelectorAll("[data-close-faculty-analytics]")
-  .forEach((element) =>
-    element.addEventListener(
-      "click",
-      closeFacultyAnalytics
-    )
+if (facultyCloseButton) {
+  facultyCloseButton.addEventListener(
+    "click",
+    closeFacultyAnalytics
   );
+}
 
-analyticsSectionFilter.addEventListener(
-  "change",
-  renderFacultyAnalytics
-);
+const facultyModalElement =
+  document.getElementById("facultyAnalyticsModal");
 
-facultyAnalyticsModal.addEventListener(
-  "click",
-  (event) => {
-    const button =
-      event.target.closest(
-        "[data-analytics-profile]"
+if (facultyModalElement) {
+  facultyModalElement
+    .querySelectorAll("[data-close-faculty-analytics]")
+    .forEach((element) => {
+      element.addEventListener(
+        "click",
+        closeFacultyAnalytics
       );
+    });
 
-    if (!button) {
-      return;
+  facultyModalElement.addEventListener(
+    "click",
+    (event) => {
+      const profileTarget =
+        event.target.closest("[data-analytics-profile]");
+
+      if (!profileTarget) return;
+
+      const registerNumber =
+        profileTarget.dataset.analyticsProfile;
+
+      closeFacultyAnalytics();
+      openStudentProfile(registerNumber);
     }
+  );
+}
 
-    closeFacultyAnalytics();
+const facultySectionFilter =
+  document.getElementById("analyticsSectionFilter");
 
-    openStudentProfile(
-      button.dataset.analyticsProfile
-    );
-  }
-);
+if (facultySectionFilter) {
+  facultySectionFilter.addEventListener(
+    "change",
+    renderFacultyAnalytics
+  );
+}
+
 
 // ============================================================
 // PUBLIC STUDENT PROGRESS PROFILE
@@ -2303,9 +2514,19 @@ document.addEventListener("keydown", (event) => {
   profileModal.hidden = true;
   manageStudentsModal.hidden = true;
   deleteModal.hidden = true;
-  studentProfileModal.hidden = true;
-  facultyAnalyticsModal.hidden = true;
-  championsModal.hidden = true;
+  const studentProfile =
+    document.getElementById("studentProfileModal");
+
+  const facultyModal =
+    document.getElementById("facultyAnalyticsModal");
+
+  const champions =
+    document.getElementById("championsModal");
+
+  if (studentProfile) studentProfile.hidden = true;
+  if (facultyModal) facultyModal.hidden = true;
+  if (champions) champions.hidden = true;
+
   document.body.classList.remove("modal-open");
 });
 

@@ -30,6 +30,15 @@
     </div>
 
     <div class="hero-side">
+      <div id="currentChampionCard" class="current-champion-card">
+        <div class="current-champion-icon">🏆</div>
+        <div>
+          <span>Current Champion</span>
+          <strong id="currentChampionSection">Waiting...</strong>
+          <small id="currentChampionScore">30-day section leader</small>
+        </div>
+      </div>
+
       <div id="adminSessionCard" class="session-card" hidden>
         <div>
           <span>Administrator</span>
@@ -75,28 +84,6 @@
       </div>
 
 
-
-      <section class="championship-card" id="championshipCard">
-        <div class="championship-heading">
-          <div>
-            <span class="championship-kicker">LIVE COMPETITION</span>
-            <h2>🏆 ECE Section Championship</h2>
-            <p>Section rank is based on total problems solved during the last 30 days.</p>
-          </div>
-
-          <div class="championship-champion" id="championshipChampion">
-            <span>Current Champion</span>
-            <strong>Waiting for data...</strong>
-          </div>
-        </div>
-
-        <div class="championship-rank-grid" id="championshipRankGrid"></div>
-
-        <div class="championship-summary">
-          <span>Ranking priority</span>
-          <strong>30 Days → 7 Days → Active Students → Average / Student</strong>
-        </div>
-      </section>
 
       <div class="section-grid">
         <button class="section-card" data-section="ECE A" type="button">
@@ -147,8 +134,8 @@
           type="button"
         >
           <span class="section-card-title">🏆 Champions</span>
-          <strong>Top Performers</strong>
-          <span>Section Champions + Overall Top 5</span>
+          <strong>Top Performance</strong>
+          <span>Section Championship + Section Champions + Overall Top 5</span>
         </button>
       </div>
 
@@ -537,7 +524,7 @@
       <div class="champions-toolbar">
         <div>
           <span class="champions-kicker">ECE HALL OF FAME</span>
-          <h2 id="championsTitle">🏆 Champions</h2>
+          <h2 id="championsTitle">🏆 Top Performance</h2>
           <p>
             Section champions and the top 5 students across the entire ECE department.
           </p>
@@ -551,6 +538,21 @@
           Close
         </button>
       </div>
+
+      <article class="champions-block">
+        <div class="champions-block-heading">
+          <div>
+            <span class="champions-kicker">SECTION RANKING</span>
+            <h3>ECE A–F Championship Rank</h3>
+          </div>
+
+          <span class="champions-rule">
+            30 Days → 7 Days → Active Students → Avg / Student
+          </span>
+        </div>
+
+        <div id="championsSectionRanking" class="champions-section-ranking"></div>
+      </article>
 
       <article class="champions-block">
         <div class="champions-block-heading">
