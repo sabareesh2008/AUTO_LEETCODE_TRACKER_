@@ -75,24 +75,26 @@
       </div>
 
 
+
       <section class="championship-card" id="championshipCard">
         <div class="championship-heading">
           <div>
             <span class="championship-kicker">LIVE COMPETITION</span>
             <h2>🏆 ECE Section Championship</h2>
-            <p>Ranked by problems solved during the last 30 days.</p>
+            <p>Section rank is based on total problems solved during the last 30 days.</p>
           </div>
-          <div class="championship-champion" id="championshipChampion"></div>
+
+          <div class="championship-champion" id="championshipChampion">
+            <span>Current Champion</span>
+            <strong>Waiting for data...</strong>
+          </div>
         </div>
-        <div class="championship-podium" id="championshipPodium"></div>
-        <div class="championship-table-wrap">
-          <table class="championship-table">
-            <thead><tr>
-              <th>Rank</th><th>Section</th><th>30 Days</th><th>7 Days</th>
-              <th>Active</th><th>Avg / Student</th><th>Performance</th>
-            </tr></thead>
-            <tbody id="championshipTableBody"></tbody>
-          </table>
+
+        <div class="championship-rank-grid" id="championshipRankGrid"></div>
+
+        <div class="championship-summary">
+          <span>Ranking priority</span>
+          <strong>30 Days → 7 Days → Active Students → Average / Student</strong>
         </div>
       </section>
 

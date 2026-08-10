@@ -217,6 +217,12 @@ function parseCSV(text) {
 }
 
 
+
+function toNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
 function escapeHTML(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -239,78 +245,161 @@ function rankClass(rank) {
 
 
 
+
 function calculateSectionChampionship() {
-  return SECTION_NAMES.map((section) => {
+  const results = SECTION_NAMES.map((section) => {
     const students = allStudents.filter(
-      (s) => normalizeSection(s.Section) === section
+      (student) =>
+        String(student.Section || "").trim().toUpperCase()
+        === section.toUpperCase()
     );
-    const last30 = students.reduce((sum, s) => sum + toNumber(s["Last 30 Days"]), 0);
-    const last7 = students.reduce((sum, s) => sum + toNumber(s["Last 7 Days"]), 0);
-    const active = students.filter((s) => toNumber(s["Last 30 Days"]) > 0).length;
+
+    const last30 = students.reduce(
+      (sum, student) =>
+        sum + toNumber(student["Last 30 Days"]),
+      0
+    );
+
+    const last7 = students.reduce(
+      (sum, student) =>
+        sum + toNumber(student["Last 7 Days"]),
+      0
+    );
+
+    const activeStudents = students.filter(
+      (student) =>
+        toNumber(student["Last 30 Days"]) > 0
+    ).length;
+
+    const average =
+      students.length > 0
+        ? last30 / students.length
+        : 0;
+
     return {
       section,
-      students: students.length,
+      studentCount: students.length,
       last30,
       last7,
-      active,
-      average: students.length ? last30 / students.length : 0
+      activeStudents,
+      average
     };
-  }).sort((a, b) =>
-    b.last30 - a.last30 ||
-    b.last7 - a.last7 ||
-    b.active - a.active ||
-    b.average - a.average ||
-    a.section.localeCompare(b.section)
-  );
+  });
+
+  return results.sort((a, b) => {
+    return (
+      b.last30 - a.last30
+      || b.last7 - a.last7
+      || b.activeStudents - a.activeStudents
+      || b.average - a.average
+      || a.section.localeCompare(b.section)
+    );
+  });
 }
 
-function championshipMedal(rank) {
-  return rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+function championshipRankLabel(rank) {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return `#${rank}`;
 }
 
 function renderSectionChampionship() {
   const ranking = calculateSectionChampionship();
-  const champion = ranking[0];
 
-  document.getElementById("championshipChampion").innerHTML =
-    champion && champion.students
-      ? `<span>Current Champion</span><strong>🏆 ${escapeHTML(champion.section)}</strong><small>${champion.last30} problems / 30 days</small>`
-      : `<span>Current Champion</span><strong>No section data yet</strong>`;
+  const championBox = document.getElementById(
+    "championshipChampion"
+  );
 
-  document.getElementById("championshipPodium").innerHTML =
-    ranking.slice(0, 3).map((item, i) => `
-      <button class="podium-card podium-rank-${i + 1}" type="button"
-        data-championship-section="${escapeHTML(item.section)}">
-        <span class="podium-medal">${championshipMedal(i + 1)}</span>
-        <strong>${escapeHTML(item.section)}</strong>
-        <span>${item.last30} solved</span>
-        <small>${item.students} students</small>
+  const hasAnyStudents = ranking.some(
+    (item) => item.studentCount > 0
+  );
+
+  if (!hasAnyStudents) {
+    championBox.innerHTML = `
+      <span>Current Champion</span>
+      <strong>No section data yet</strong>
+    `;
+  } else {
+    const champion = ranking[0];
+
+    championBox.innerHTML = `
+      <span>Current Champion</span>
+      <strong>🏆 ${escapeHTML(champion.section)}</strong>
+      <small>${champion.last30} problems in 30 days</small>
+    `;
+  }
+
+  const rankGrid = document.getElementById(
+    "championshipRankGrid"
+  );
+
+  rankGrid.innerHTML = ranking.map((item, index) => {
+    const rank = index + 1;
+
+    return `
+      <button
+        type="button"
+        class="championship-section-rank-card rank-card-${rank}"
+        data-championship-section="${escapeHTML(item.section)}"
+      >
+        <div class="championship-rank-top">
+          <span class="championship-rank-number">
+            ${championshipRankLabel(rank)}
+          </span>
+
+          <span class="championship-section-name">
+            ${escapeHTML(item.section)}
+          </span>
+        </div>
+
+        <div class="championship-rank-metrics">
+          <div>
+            <span>30 Days</span>
+            <strong>${item.last30}</strong>
+          </div>
+
+          <div>
+            <span>7 Days</span>
+            <strong>${item.last7}</strong>
+          </div>
+
+          <div>
+            <span>Active</span>
+            <strong>${item.activeStudents}</strong>
+          </div>
+
+          <div>
+            <span>Students</span>
+            <strong>${item.studentCount}</strong>
+          </div>
+        </div>
+
+        <div class="championship-rank-average">
+          Avg / Student:
+          <strong>${item.average.toFixed(1)}</strong>
+        </div>
       </button>
-    `).join("");
-
-  const max30 = Math.max(1, ...ranking.map((x) => x.last30));
-
-  document.getElementById("championshipTableBody").innerHTML =
-    ranking.map((item, i) => `
-      <tr class="championship-row" data-championship-section="${escapeHTML(item.section)}">
-        <td><span class="championship-rank">${championshipMedal(i + 1)}</span></td>
-        <td><strong>${escapeHTML(item.section)}</strong><small>${item.students} students</small></td>
-        <td><strong>${item.last30}</strong></td>
-        <td>${item.last7}</td>
-        <td>${item.active}<small>of ${item.students}</small></td>
-        <td>${item.average.toFixed(1)}</td>
-        <td><div class="championship-progress"><span style="width:${item.last30 ? Math.max(4, item.last30 / max30 * 100) : 0}%"></span></div></td>
-      </tr>
-    `).join("");
+    `;
+  }).join("");
 }
 
-document.getElementById("championshipCard").addEventListener("click", (event) => {
-  const target = event.target.closest("[data-championship-section]");
-  if (!target) return;
-  selectedSection = normalizeSection(target.dataset.championshipSection);
-  showLeaderboardView();
-});
+document
+  .getElementById("championshipCard")
+  .addEventListener("click", (event) => {
+    const card = event.target.closest(
+      "[data-championship-section]"
+    );
 
+    if (!card) {
+      return;
+    }
+
+    const section =
+      card.dataset.championshipSection;
+
+    openSection(section);
+  });
 
 function updateSectionCounts() {
   const counts = {
