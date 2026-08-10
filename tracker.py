@@ -113,7 +113,10 @@ def unique_solved_count_since(
         if not timestamp or not title_slug:
             continue
 
-        submission_time = datetime.fromtimestamp(int(timestamp))
+        submission_time = datetime.fromtimestamp(
+            int(timestamp),
+            tz=IST,
+        )
 
         if submission_time >= start_time:
             solved.add(title_slug)
@@ -197,12 +200,18 @@ def fetch_leetcode(username: str) -> dict[str, Any]:
             timestamp = latest.get("timestamp")
             if timestamp:
                 last_solved = datetime.fromtimestamp(
-                    int(timestamp)
-                ).strftime("%Y-%m-%d %H:%M:%S")
+                    int(timestamp),
+                    tz=IST,
+                ).strftime("%Y-%m-%d %H:%M:%S IST")
 
-        now = datetime.now()
+        now = datetime.now(IST)
 
-        today_start = datetime.combine(date.today(), datetime.min.time())
+        today_start = datetime.combine(
+            now.date(),
+            dt_time.min,
+            tzinfo=IST,
+        )
+
         seven_days_start = now - timedelta(days=7)
         thirty_days_start = now - timedelta(days=30)
 
@@ -591,7 +600,9 @@ def save_challenge_result(
 def run_one_update() -> None:
     students = read_students()
 
-    updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    updated_at = datetime.now(IST).strftime(
+        "%Y-%m-%d %H:%M:%S IST"
+    )
     live_rows: list[dict[str, Any]] = []
 
     total_students = len(students)
