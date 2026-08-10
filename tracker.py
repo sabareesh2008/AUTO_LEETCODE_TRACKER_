@@ -612,97 +612,270 @@ def read_students() -> pd.DataFrame:
 
 
 # ============================================================
-# HISTORY-BASED 7 / 30 DAY COUNTS
+# COMPLETED-DAY ROLLING 7 / 30 DAY COUNTS
 # ============================================================
 
-def build_daily_solved_from_history(
+def safe_int(value: Any) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def load_daily_activity_file() -> pd.DataFrame:
+    columns = [
+        "Date",
+        "Section",
+        "Register Number",
+        "Student Name",
+        "LeetCode Username",
+        "Problems Solved",
+        "Solved That Day",
+    ]
+
+    if not DAILY_ACTIVITY_CSV.exists():
+        return pd.DataFrame(columns=columns)
+
+    try:
+        frame = pd.read_csv(
+            DAILY_ACTIVITY_CSV,
+            dtype=str,
+            keep_default_na=False,
+        )
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=columns)
+
+    for column in columns:
+        if column not in frame.columns:
+            frame[column] = ""
+
+    return frame[columns].copy()
+
+
+def latest_previous_snapshot(
     history: pd.DataFrame,
     register_number: str,
-    current_total: int,
-) -> tuple[int, int]:
-    """Calculate rolling 7/30-day solved counts from stored total-solved history."""
-
+) -> dict[str, Any] | None:
     if history.empty:
-        return 0, 0
+        return None
 
     student_history = history[
         history["Register Number"].astype(str) == str(register_number)
     ].copy()
 
     if student_history.empty:
-        return 0, 0
+        return None
 
-    student_history["DateParsed"] = pd.to_datetime(
+    student_history["_date"] = pd.to_datetime(
         student_history["Date"],
         errors="coerce",
-    )
-
-    student_history["TotalParsed"] = pd.to_numeric(
-        student_history["Problems Solved"],
-        errors="coerce",
-    )
-
-    student_history = student_history.dropna(
-        subset=["DateParsed", "TotalParsed"]
-    )
-
-    if student_history.empty:
-        return 0, 0
-
-    student_history = (
-        student_history
-        .sort_values("DateParsed")
-        .drop_duplicates(
-            subset=["DateParsed"],
-            keep="last",
-        )
     )
 
     today = pd.Timestamp(date.today())
 
     student_history = student_history[
-        student_history["DateParsed"] < today
-    ].copy()
+        student_history["_date"] < today
+    ].dropna(subset=["_date"])
 
-    snapshots = [
-        (
-            row["DateParsed"].normalize(),
-            int(row["TotalParsed"]),
-        )
-        for _, row in student_history.iterrows()
+    if student_history.empty:
+        return None
+
+    row = (
+        student_history
+        .sort_values("_date")
+        .iloc[-1]
+    )
+
+    return row.to_dict()
+
+
+def solved_on_date(
+    activity: pd.DataFrame,
+    register_number: str,
+    target_date: date,
+) -> int:
+    if activity.empty:
+        return 0
+
+    matches = activity[
+        (activity["Register Number"].astype(str) == str(register_number))
+        & (activity["Date"].astype(str) == target_date.isoformat())
     ]
 
-    snapshots.append((today, int(current_total)))
-    snapshots.sort(key=lambda item: item[0])
+    if matches.empty:
+        return 0
 
-    daily_solved = []
-    previous_total = None
+    return safe_int(matches.iloc[-1]["Solved That Day"])
 
-    for snapshot_date, total in snapshots:
-        if previous_total is None:
-            previous_total = total
+
+def calculate_completed_day_counts(
+    previous_history: pd.DataFrame,
+    previous_activity: pd.DataFrame,
+    register_number: str,
+    current_total: int,
+    solved_today: int,
+    leetcode_7_days: int,
+    leetcode_30_days: int,
+) -> tuple[int, int, str, int]:
+    """
+    Keep the existing 7/30-day values, then update them once per new day.
+
+    Today's solves are NOT added to 7/30 yet.
+    On the next day they become the completed-day delta.
+
+    Example:
+      yesterday total = 100
+      today total = 102
+      solved_today = 0
+      completed previous day = 2
+
+    Those 2 are added to 7-day and 30-day counts today.
+    """
+
+    today = date.today()
+    previous = latest_previous_snapshot(
+        previous_history,
+        register_number,
+    )
+
+    # First baseline: use LeetCode's current rolling values but exclude today.
+    if previous is None:
+        baseline_7 = max(0, safe_int(leetcode_7_days) - safe_int(solved_today))
+        baseline_30 = max(0, safe_int(leetcode_30_days) - safe_int(solved_today))
+
+        return (
+            baseline_7,
+            baseline_30,
+            "",
+            0,
+        )
+
+    previous_date_text = str(previous.get("Date", "")).strip()
+
+    try:
+        previous_date = date.fromisoformat(previous_date_text)
+    except ValueError:
+        previous_date = today - timedelta(days=1)
+
+    previous_total = safe_int(
+        previous.get("Problems Solved", 0)
+    )
+
+    previous_7 = safe_int(
+        previous.get("Last 7 Days", 0)
+    )
+
+    previous_30 = safe_int(
+        previous.get("Last 30 Days", 0)
+    )
+
+    # Total increase since the previous stored day, excluding today's solves.
+    completed_delta = max(
+        0,
+        safe_int(current_total)
+        - previous_total
+        - safe_int(solved_today),
+    )
+
+    # We assign the completed increase to the day immediately before today.
+    # With the normal daily/scheduled tracker this represents yesterday.
+    completed_date = today - timedelta(days=1)
+
+    expired_7 = solved_on_date(
+        previous_activity,
+        register_number,
+        today - timedelta(days=7),
+    )
+
+    expired_30 = solved_on_date(
+        previous_activity,
+        register_number,
+        today - timedelta(days=30),
+    )
+
+    last_7_days = max(
+        0,
+        previous_7 + completed_delta - expired_7,
+    )
+
+    last_30_days = max(
+        0,
+        previous_30 + completed_delta - expired_30,
+    )
+
+    return (
+        last_7_days,
+        last_30_days,
+        completed_date.isoformat(),
+        completed_delta,
+    )
+
+
+def update_completed_daily_activity(
+    previous_activity: pd.DataFrame,
+    current_rows: list[dict[str, Any]],
+) -> pd.DataFrame:
+    columns = [
+        "Date",
+        "Section",
+        "Register Number",
+        "Student Name",
+        "LeetCode Username",
+        "Problems Solved",
+        "Solved That Day",
+    ]
+
+    activity = previous_activity.copy()
+
+    new_rows = []
+
+    for row in current_rows:
+        completed_date = row.get("_Completed Date", "")
+        completed_solved = safe_int(
+            row.get("_Completed Solved", 0)
+        )
+
+        if not completed_date:
             continue
 
-        solved_that_day = max(0, total - previous_total)
-        daily_solved.append((snapshot_date, solved_that_day))
-        previous_total = total
+        # Replace an existing record for this student/date.
+        if not activity.empty:
+            activity = activity[
+                ~(
+                    (activity["Date"].astype(str) == str(completed_date))
+                    & (
+                        activity["Register Number"].astype(str)
+                        == str(row["Register Number"])
+                    )
+                )
+            ].copy()
 
-    seven_start = today - pd.Timedelta(days=6)
-    thirty_start = today - pd.Timedelta(days=29)
+        new_rows.append({
+            "Date": completed_date,
+            "Section": row["Section"],
+            "Register Number": row["Register Number"],
+            "Student Name": row["Student Name"],
+            "LeetCode Username": row["LeetCode Username"],
+            "Problems Solved": row["Problems Solved"],
+            "Solved That Day": completed_solved,
+        })
 
-    last_7_days = sum(
-        solved
-        for snapshot_date, solved in daily_solved
-        if snapshot_date >= seven_start
-    )
+    if new_rows:
+        activity = pd.concat(
+            [
+                activity,
+                pd.DataFrame(new_rows, columns=columns),
+            ],
+            ignore_index=True,
+        )
 
-    last_30_days = sum(
-        solved
-        for snapshot_date, solved in daily_solved
-        if snapshot_date >= thirty_start
-    )
+    if not activity.empty:
+        activity = activity.sort_values(
+            by=["Date", "Section", "Register Number"],
+            ascending=[True, True, True],
+        ).reset_index(drop=True)
 
-    return int(last_7_days), int(last_30_days)
+    return activity[columns]
 
 
 # ============================================================
@@ -715,6 +888,7 @@ def process_student(
     student: pd.Series,
     updated_at: str,
     previous_history: pd.DataFrame,
+    previous_activity: pd.DataFrame,
 ) -> dict[str, Any]:
     register_number = clean(
         student["Register Number"]
@@ -742,23 +916,23 @@ def process_student(
         username
     )
 
-    history_7_days, history_30_days = build_daily_solved_from_history(
+    (
+        completed_7_days,
+        completed_30_days,
+        completed_date,
+        completed_solved,
+    ) = calculate_completed_day_counts(
         previous_history,
+        previous_activity,
         register_number,
         profile["total_solved"],
+        profile["solved_today"],
+        profile["last_7_days"],
+        profile["last_30_days"],
     )
 
-    has_student_history = (
-        not previous_history.empty
-        and (
-            previous_history["Register Number"].astype(str)
-            == str(register_number)
-        ).any()
-    )
-
-    if has_student_history:
-        profile["last_7_days"] = history_7_days
-        profile["last_30_days"] = history_30_days
+    profile["last_7_days"] = completed_7_days
+    profile["last_30_days"] = completed_30_days
 
     row = {
         "Section": section,
@@ -796,6 +970,10 @@ def process_student(
             profile["status"],
         "Updated At":
             updated_at,
+        "_Completed Date":
+            completed_date,
+        "_Completed Solved":
+            completed_solved,
     }
 
     print(
@@ -1273,6 +1451,7 @@ def run_one_update() -> None:
     print("=" * 64)
 
     previous_history = load_history()
+    previous_activity = load_daily_activity_file()
 
     futures = {}
 
@@ -1293,6 +1472,7 @@ def run_one_update() -> None:
                 student,
                 updated_at,
                 previous_history,
+                previous_activity,
             )
 
             futures[
@@ -1399,11 +1579,27 @@ def run_one_update() -> None:
                             ),
                         "Updated At":
                             updated_at,
+                        "_Completed Date":
+                            "",
+                        "_Completed Solved":
+                            0,
                     }
                 )
 
+    # Keep the internal completed-day data for DailyActivity.csv.
+    completed_activity_rows = list(live_rows)
+
     live_data = pd.DataFrame(
         live_rows
+    )
+
+    # Internal helper columns must not appear in LiveData.csv.
+    live_data = live_data.drop(
+        columns=[
+            "_Completed Date",
+            "_Completed Solved",
+        ],
+        errors="ignore",
     )
 
     live_data = add_ranks(
@@ -1423,10 +1619,9 @@ def run_one_update() -> None:
         history_rows,
     )
 
-    daily_activity = (
-        build_daily_activity(
-            history
-        )
+    daily_activity = update_completed_daily_activity(
+        previous_activity,
+        completed_activity_rows,
     )
 
     atomic_csv_write(
