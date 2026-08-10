@@ -1247,3 +1247,25 @@ footer {
         display: block !important;
     }
 }
+/* =========================================
+   FIX ADD PROFILE MODAL SCROLLING
+   ========================================= */
+
+.profile-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    overflow-y: auto;
+    padding: 24px 16px;
+}
+
+.profile-modal-card {
+    width: min(92vw, 620px);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    margin: auto;
+}
+
+body.modal-open {
+    overflow: hidden;
+}

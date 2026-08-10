@@ -721,6 +721,7 @@ function openAddModal() {
 
   saveProfileButton.textContent = "Add User";
   profileModal.hidden = false;
+  document.body.classList.add("modal-open");
 }
 
 
@@ -749,13 +750,14 @@ function openEditModal(studentId) {
 
   manageStudentsModal.hidden = true;
   profileModal.hidden = false;
+  document.body.classList.add("modal-open");
 }
 
 
 function closeProfile() {
-  profileModal.hidden = true;
+    profileModal.hidden = true;
+    document.body.classList.remove("modal-open");
 }
-
 
 async function saveProfile(event) {
   event.preventDefault();
