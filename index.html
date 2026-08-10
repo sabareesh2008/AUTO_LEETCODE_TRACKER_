@@ -140,6 +140,16 @@
           <strong id="countOverall">0</strong>
           <span>Total Students</span>
         </button>
+
+        <button
+          id="championsCardButton"
+          class="section-card champions-home-card"
+          type="button"
+        >
+          <span class="section-card-title">🏆 Champions</span>
+          <strong>Top Performers</strong>
+          <span>Section Champions + Overall Top 5</span>
+        </button>
       </div>
 
       <div class="home-admin-actions admin-only" hidden>
@@ -510,6 +520,65 @@
   </div>
 
 
+
+
+  <!-- =======================================================
+       PUBLIC CHAMPIONS VIEW
+       ======================================================= -->
+  <div id="championsModal" class="champions-modal" hidden>
+    <div class="champions-backdrop" data-close-champions></div>
+
+    <section
+      class="champions-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="championsTitle"
+    >
+      <div class="champions-toolbar">
+        <div>
+          <span class="champions-kicker">ECE HALL OF FAME</span>
+          <h2 id="championsTitle">🏆 Champions</h2>
+          <p>
+            Section champions and the top 5 students across the entire ECE department.
+          </p>
+        </div>
+
+        <button
+          id="closeChampionsButton"
+          class="action-button secondary"
+          type="button"
+        >
+          Close
+        </button>
+      </div>
+
+      <article class="champions-block">
+        <div class="champions-block-heading">
+          <div>
+            <span class="champions-kicker">SECTION LEADERS</span>
+            <h3>Champions of ECE A–F</h3>
+          </div>
+
+          <span class="champions-rule">
+            30 Days → 7 Days → Total Solved
+          </span>
+        </div>
+
+        <div id="sectionChampionsGrid" class="section-champions-grid"></div>
+      </article>
+
+      <article class="champions-block">
+        <div class="champions-block-heading">
+          <div>
+            <span class="champions-kicker">DEPARTMENT LEADERS</span>
+            <h3>Top 5 Students · All Sections</h3>
+          </div>
+        </div>
+
+        <div id="overallTopFive" class="overall-top-five"></div>
+      </article>
+    </section>
+  </div>
 
   <!-- =======================================================
        ADMIN FACULTY ANALYTICS DASHBOARD

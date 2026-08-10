@@ -220,6 +220,14 @@ function parseCSV(text) {
 
 
 
+
+function normalizeSection(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
 function toNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
@@ -1133,6 +1141,239 @@ function downloadPDF() {
 
 
 
+
+// ============================================================
+// PUBLIC CHAMPIONS VIEW
+// ============================================================
+
+const championsCardButton =
+  document.getElementById("championsCardButton");
+
+const championsModal =
+  document.getElementById("championsModal");
+
+const closeChampionsButton =
+  document.getElementById("closeChampionsButton");
+
+function compareChampionStudents(a, b) {
+  return (
+    toNumber(b["Last 30 Days"]) - toNumber(a["Last 30 Days"])
+    || toNumber(b["Last 7 Days"]) - toNumber(a["Last 7 Days"])
+    || toNumber(b["Problems Solved"]) - toNumber(a["Problems Solved"])
+    || String(a["Student Name"] || "").localeCompare(
+      String(b["Student Name"] || "")
+    )
+  );
+}
+
+function getSectionChampion(section) {
+  const students = allStudents
+    .filter(
+      (student) =>
+        normalizeSection(student.Section) === normalizeSection(section)
+    )
+    .sort(compareChampionStudents);
+
+  return students[0] || null;
+}
+
+function renderSectionChampions() {
+  const grid =
+    document.getElementById("sectionChampionsGrid");
+
+  grid.innerHTML = SECTION_NAMES.map((section) => {
+    const champion = getSectionChampion(section);
+
+    if (!champion) {
+      return `
+        <article class="section-champion-card empty-champion-card">
+          <div class="section-champion-top">
+            <span class="section-champion-crown">🏆</span>
+            <span class="section-pill">${escapeHTML(section)}</span>
+          </div>
+
+          <h4>No student data yet</h4>
+          <p>Add students to ${escapeHTML(section)}.</p>
+        </article>
+      `;
+    }
+
+    return `
+      <button
+        type="button"
+        class="section-champion-card"
+        data-champion-profile="${escapeHTML(champion["Register Number"])}"
+      >
+        <div class="section-champion-top">
+          <span class="section-champion-crown">🏆</span>
+          <span class="section-pill">${escapeHTML(section)}</span>
+        </div>
+
+        <h4>${escapeHTML(champion["Student Name"])}</h4>
+
+        <p>${escapeHTML(champion["Register Number"])}</p>
+
+        <div class="section-champion-metrics">
+          <span>
+            <small>30 Days</small>
+            <strong>${toNumber(champion["Last 30 Days"])}</strong>
+          </span>
+
+          <span>
+            <small>7 Days</small>
+            <strong>${toNumber(champion["Last 7 Days"])}</strong>
+          </span>
+
+          <span>
+            <small>Total</small>
+            <strong>${toNumber(champion["Problems Solved"])}</strong>
+          </span>
+        </div>
+
+        <span class="open-profile-hint">Open Profile ↗</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function renderOverallTopFive() {
+  const students = [...allStudents]
+    .sort(compareChampionStudents)
+    .slice(0, 5);
+
+  const container =
+    document.getElementById("overallTopFive");
+
+  if (!students.length) {
+    container.innerHTML = `
+      <div class="champions-empty">
+        No student data available yet.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = students.map((student, index) => {
+    const rank = index + 1;
+    const medal =
+      rank === 1 ? "🥇"
+      : rank === 2 ? "🥈"
+      : rank === 3 ? "🥉"
+      : `#${rank}`;
+
+    return `
+      <button
+        type="button"
+        class="overall-top-student top-student-${rank}"
+        data-champion-profile="${escapeHTML(student["Register Number"])}"
+      >
+        <span class="overall-top-rank">${medal}</span>
+
+        <div class="overall-top-identity">
+          <strong>${escapeHTML(student["Student Name"])}</strong>
+          <span>
+            ${escapeHTML(student.Section)} ·
+            ${escapeHTML(student["Register Number"])}
+          </span>
+        </div>
+
+        <div class="overall-top-metrics">
+          <span>
+            <small>30 Days</small>
+            <strong>${toNumber(student["Last 30 Days"])}</strong>
+          </span>
+
+          <span>
+            <small>7 Days</small>
+            <strong>${toNumber(student["Last 7 Days"])}</strong>
+          </span>
+
+          <span>
+            <small>Total</small>
+            <strong>${toNumber(student["Problems Solved"])}</strong>
+          </span>
+        </div>
+      </button>
+    `;
+  }).join("");
+}
+
+function renderChampions() {
+  renderSectionChampions();
+  renderOverallTopFive();
+}
+
+function openChampions() {
+  renderChampions();
+
+  championsModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeChampions() {
+  championsModal.hidden = true;
+
+  const anotherModalOpen = [
+    adminLoginModal,
+    profileModal,
+    manageStudentsModal,
+    deleteModal,
+    studentProfileModal,
+    facultyAnalyticsModal
+  ].some(
+    (modal) => modal && !modal.hidden
+  );
+
+  if (!anotherModalOpen) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+if (championsCardButton) {
+  championsCardButton.addEventListener(
+    "click",
+    openChampions
+  );
+}
+
+if (closeChampionsButton) {
+  closeChampionsButton.addEventListener(
+    "click",
+    closeChampions
+  );
+}
+
+if (championsModal) {
+  championsModal
+    .querySelectorAll("[data-close-champions]")
+    .forEach((element) =>
+      element.addEventListener(
+        "click",
+        closeChampions
+      )
+    );
+
+  championsModal.addEventListener(
+    "click",
+    (event) => {
+      const target =
+        event.target.closest(
+          "[data-champion-profile]"
+        );
+
+      if (!target) {
+        return;
+      }
+
+      closeChampions();
+
+      openStudentProfile(
+        target.dataset.championProfile
+      );
+    }
+  );
+}
+
 // ============================================================
 // ADMIN FACULTY ANALYTICS DASHBOARD
 // ============================================================
@@ -1486,15 +1727,19 @@ function closeFacultyAnalytics() {
   }
 }
 
-facultyAnalyticsButton.addEventListener(
-  "click",
-  openFacultyAnalytics
-);
+if (facultyAnalyticsButton) {
+  facultyAnalyticsButton.addEventListener(
+    "click",
+    openFacultyAnalytics
+  );
+}
 
-homeFacultyAnalyticsButton.addEventListener(
-  "click",
-  openFacultyAnalytics
-);
+if (homeFacultyAnalyticsButton) {
+  homeFacultyAnalyticsButton.addEventListener(
+    "click",
+    openFacultyAnalytics
+  );
+}
 
 closeFacultyAnalyticsButton.addEventListener(
   "click",
@@ -2060,6 +2305,7 @@ document.addEventListener("keydown", (event) => {
   deleteModal.hidden = true;
   studentProfileModal.hidden = true;
   facultyAnalyticsModal.hidden = true;
+  championsModal.hidden = true;
   document.body.classList.remove("modal-open");
 });
 

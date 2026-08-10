@@ -2145,3 +2145,300 @@ body.modal-open {
         display: none !important;
     }
 }
+
+
+/* ==========================================================
+   CHAMPIONS HOME CARD + HALL OF FAME
+   ========================================================== */
+
+.champions-home-card {
+    grid-column: 1 / -1;
+    min-height: 120px;
+    background:
+        radial-gradient(
+            circle at 85% 0%,
+            rgba(251, 191, 36, 0.12),
+            transparent 30%
+        ),
+        rgba(255, 255, 255, 0.035);
+    border-color: rgba(251, 191, 36, 0.22);
+}
+
+.champions-home-card strong {
+    font-size: 28px;
+}
+
+.champions-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 12500;
+    overflow-y: auto;
+    padding: 22px;
+}
+
+.champions-modal[hidden] {
+    display: none !important;
+}
+
+.champions-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.82);
+    backdrop-filter: blur(12px);
+}
+
+.champions-panel {
+    position: relative;
+    z-index: 1;
+    width: min(1180px, 100%);
+    min-height: calc(100vh - 44px);
+    margin: 0 auto;
+    padding: 26px;
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    background:
+        radial-gradient(
+            circle at 90% 0%,
+            rgba(251, 191, 36, 0.09),
+            transparent 28%
+        ),
+        #07101f;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+}
+
+.champions-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.champions-toolbar h2 {
+    margin: 5px 0 6px;
+    font-size: clamp(28px, 5vw, 42px);
+}
+
+.champions-toolbar p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.champions-kicker {
+    color: #fbbf24;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+}
+
+.champions-block {
+    margin-bottom: 18px;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: 23px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.champions-block-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.champions-block-heading h3 {
+    margin: 5px 0 0;
+    font-size: 21px;
+}
+
+.champions-rule {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.section-champions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.section-champion-card {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 19px;
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition:
+        transform 160ms ease,
+        border-color 160ms ease;
+}
+
+.section-champion-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(251, 191, 36, 0.34);
+}
+
+.empty-champion-card {
+    cursor: default;
+    opacity: 0.7;
+}
+
+.empty-champion-card:hover {
+    transform: none;
+}
+
+.section-champion-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 13px;
+}
+
+.section-champion-crown {
+    font-size: 23px;
+}
+
+.section-champion-card h4 {
+    margin: 0 0 4px;
+    font-size: 18px;
+}
+
+.section-champion-card > p {
+    margin: 0 0 14px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.section-champion-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.section-champion-metrics span {
+    padding: 9px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.section-champion-metrics small,
+.overall-top-metrics small {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 9px;
+    text-transform: uppercase;
+}
+
+.open-profile-hint {
+    display: block;
+    margin-top: 12px;
+    color: var(--accent-2);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.overall-top-five {
+    display: grid;
+    gap: 10px;
+}
+
+.overall-top-student {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 17px;
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.overall-top-student:hover {
+    border-color: rgba(96, 165, 250, 0.4);
+    background: rgba(96, 165, 250, 0.055);
+}
+
+.top-student-1 {
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+.overall-top-rank {
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.overall-top-identity strong,
+.overall-top-identity span {
+    display: block;
+}
+
+.overall-top-identity span {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.overall-top-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 70px);
+    gap: 8px;
+    text-align: center;
+}
+
+.overall-top-metrics span {
+    padding: 8px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.champions-empty {
+    padding: 30px;
+    color: var(--muted);
+    text-align: center;
+}
+
+@media (max-width: 850px) {
+    .section-champions-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .overall-top-student {
+        grid-template-columns: 44px 1fr;
+    }
+
+    .overall-top-metrics {
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 560px) {
+    .champions-modal {
+        padding: 10px;
+    }
+
+    .champions-panel {
+        min-height: calc(100vh - 20px);
+        padding: 16px;
+        border-radius: 20px;
+    }
+
+    .champions-toolbar,
+    .champions-block-heading {
+        flex-direction: column;
+    }
+
+    .section-champions-grid {
+        grid-template-columns: 1fr;
+    }
+}
