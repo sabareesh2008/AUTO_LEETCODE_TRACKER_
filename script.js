@@ -238,6 +238,80 @@ function rankClass(rank) {
 }
 
 
+
+function calculateSectionChampionship() {
+  return SECTION_NAMES.map((section) => {
+    const students = allStudents.filter(
+      (s) => normalizeSection(s.Section) === section
+    );
+    const last30 = students.reduce((sum, s) => sum + toNumber(s["Last 30 Days"]), 0);
+    const last7 = students.reduce((sum, s) => sum + toNumber(s["Last 7 Days"]), 0);
+    const active = students.filter((s) => toNumber(s["Last 30 Days"]) > 0).length;
+    return {
+      section,
+      students: students.length,
+      last30,
+      last7,
+      active,
+      average: students.length ? last30 / students.length : 0
+    };
+  }).sort((a, b) =>
+    b.last30 - a.last30 ||
+    b.last7 - a.last7 ||
+    b.active - a.active ||
+    b.average - a.average ||
+    a.section.localeCompare(b.section)
+  );
+}
+
+function championshipMedal(rank) {
+  return rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+}
+
+function renderSectionChampionship() {
+  const ranking = calculateSectionChampionship();
+  const champion = ranking[0];
+
+  document.getElementById("championshipChampion").innerHTML =
+    champion && champion.students
+      ? `<span>Current Champion</span><strong>🏆 ${escapeHTML(champion.section)}</strong><small>${champion.last30} problems / 30 days</small>`
+      : `<span>Current Champion</span><strong>No section data yet</strong>`;
+
+  document.getElementById("championshipPodium").innerHTML =
+    ranking.slice(0, 3).map((item, i) => `
+      <button class="podium-card podium-rank-${i + 1}" type="button"
+        data-championship-section="${escapeHTML(item.section)}">
+        <span class="podium-medal">${championshipMedal(i + 1)}</span>
+        <strong>${escapeHTML(item.section)}</strong>
+        <span>${item.last30} solved</span>
+        <small>${item.students} students</small>
+      </button>
+    `).join("");
+
+  const max30 = Math.max(1, ...ranking.map((x) => x.last30));
+
+  document.getElementById("championshipTableBody").innerHTML =
+    ranking.map((item, i) => `
+      <tr class="championship-row" data-championship-section="${escapeHTML(item.section)}">
+        <td><span class="championship-rank">${championshipMedal(i + 1)}</span></td>
+        <td><strong>${escapeHTML(item.section)}</strong><small>${item.students} students</small></td>
+        <td><strong>${item.last30}</strong></td>
+        <td>${item.last7}</td>
+        <td>${item.active}<small>of ${item.students}</small></td>
+        <td>${item.average.toFixed(1)}</td>
+        <td><div class="championship-progress"><span style="width:${item.last30 ? Math.max(4, item.last30 / max30 * 100) : 0}%"></span></div></td>
+      </tr>
+    `).join("");
+}
+
+document.getElementById("championshipCard").addEventListener("click", (event) => {
+  const target = event.target.closest("[data-championship-section]");
+  if (!target) return;
+  selectedSection = normalizeSection(target.dataset.championshipSection);
+  showLeaderboardView();
+});
+
+
 function updateSectionCounts() {
   const counts = {
     "ECE A": 0,
@@ -261,6 +335,8 @@ function updateSectionCounts() {
   document.getElementById("countECEE").textContent = counts["ECE E"];
   document.getElementById("countECEF").textContent = counts["ECE F"];
   document.getElementById("countOverall").textContent = allStudents.length;
+
+  renderSectionChampionship();
 }
 
 
