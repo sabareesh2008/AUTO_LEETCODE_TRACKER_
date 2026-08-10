@@ -1198,6 +1198,297 @@ function downloadPDF() {
 
 
 
+
+// ============================================================
+// DAILY CHALLENGE
+// ============================================================
+
+let dailyChallenges = [];
+let dailyChallengeResults = [];
+
+function localISODate() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  return new Date(now.getTime() - offset * 60000)
+    .toISOString().slice(0, 10);
+}
+
+async function loadDailyChallengeData() {
+  if (!supabaseClient) return;
+
+  const [{ data: challenges, error: challengeError },
+         { data: results, error: resultError }] = await Promise.all([
+    supabaseClient.from("daily_challenges")
+      .select("*").order("challenge_date", { ascending: true }),
+    supabaseClient.from("daily_challenge_results")
+      .select("*")
+  ]);
+
+  if (challengeError) throw challengeError;
+  if (resultError) throw resultError;
+
+  dailyChallenges = challenges || [];
+  dailyChallengeResults = results || [];
+  renderDailyChallengeHome();
+}
+
+function getTodayChallenge() {
+  const today = localISODate();
+  return dailyChallenges.find((item) => item.challenge_date === today) || null;
+}
+
+function studentChallengeStats(registerNumber) {
+  const completedByChallenge = new Map();
+
+  dailyChallengeResults
+    .filter((r) => String(r.register_number) === String(registerNumber))
+    .forEach((r) => completedByChallenge.set(Number(r.challenge_id), Boolean(r.completed)));
+
+  const ordered = [...dailyChallenges].sort(
+    (a, b) => a.challenge_date.localeCompare(b.challenge_date)
+  );
+
+  let totalCompleted = 0;
+  let currentStreak = 0;
+  let longestStreak = 0;
+  let running = 0;
+
+  for (const challenge of ordered) {
+    const done = completedByChallenge.get(Number(challenge.id)) === true;
+    if (done) {
+      totalCompleted += 1;
+      running += 1;
+      longestStreak = Math.max(longestStreak, running);
+    } else {
+      running = 0;
+    }
+  }
+
+  // Current streak is calculated from the latest posted challenge backwards.
+  for (let i = ordered.length - 1; i >= 0; i -= 1) {
+    const done = completedByChallenge.get(Number(ordered[i].id)) === true;
+    if (done) currentStreak += 1;
+    else break;
+  }
+
+  return { totalCompleted, currentStreak, longestStreak };
+}
+
+function renderDailyChallengeHome() {
+  const title = document.getElementById("dailyChallengeHomeTitle");
+  const progress = document.getElementById("dailyChallengeHomeProgress");
+  if (!title || !progress) return;
+
+  const challenge = getTodayChallenge();
+  if (!challenge) {
+    title.textContent = "No challenge posted";
+    progress.textContent = "Admin can post today's problem";
+    return;
+  }
+
+  const completed = dailyChallengeResults.filter(
+    (r) => Number(r.challenge_id) === Number(challenge.id) && r.completed
+  ).length;
+
+  title.textContent = challenge.problem_title;
+  progress.textContent = `${completed} / ${allStudents.length} completed today`;
+}
+
+function renderDailyChallengeModal() {
+  const challenge = getTodayChallenge();
+  const title = document.getElementById("todayChallengeTitle");
+  const dateText = document.getElementById("todayChallengeDate");
+  const difficulty = document.getElementById("todayChallengeDifficulty");
+  const link = document.getElementById("todayChallengeLink");
+
+  if (!challenge) {
+    title.textContent = "No challenge posted today";
+    dateText.textContent = localISODate();
+    difficulty.textContent = "—";
+    link.hidden = true;
+  } else {
+    title.textContent =
+      `${challenge.problem_number ? `#${challenge.problem_number} · ` : ""}${challenge.problem_title}`;
+    dateText.textContent = challenge.challenge_date;
+    difficulty.textContent = challenge.difficulty;
+    link.href = challenge.problem_url;
+    link.hidden = false;
+  }
+
+  const todayResults = challenge
+    ? dailyChallengeResults.filter((r) => Number(r.challenge_id) === Number(challenge.id))
+    : [];
+
+  const completed = todayResults.filter((r) => r.completed).length;
+  const total = allStudents.length;
+  const pending = Math.max(0, total - completed);
+
+  document.getElementById("challengeCompletedCount").textContent = completed;
+  document.getElementById("challengePendingCount").textContent = pending;
+  document.getElementById("challengeStudentCount").textContent = total;
+  document.getElementById("challengeCompletionRate").textContent =
+    `${total ? (completed / total * 100).toFixed(1) : "0.0"}%`;
+
+  renderChallengeLeaderboard();
+  renderChallengeStudentStatus();
+}
+
+function renderChallengeLeaderboard() {
+  const body = document.getElementById("challengeLeaderboardBody");
+  if (!body) return;
+
+  const today = getTodayChallenge();
+
+  const rows = allStudents.map((student) => {
+    const stats = studentChallengeStats(student["Register Number"]);
+    const todayDone = today && dailyChallengeResults.some(
+      (r) =>
+        Number(r.challenge_id) === Number(today.id)
+        && String(r.register_number) === String(student["Register Number"])
+        && r.completed
+    );
+
+    return { student, ...stats, todayDone };
+  }).sort((a, b) =>
+    b.totalCompleted - a.totalCompleted
+    || b.currentStreak - a.currentStreak
+    || b.longestStreak - a.longestStreak
+    || String(a.student["Student Name"]).localeCompare(String(b.student["Student Name"]))
+  );
+
+  body.innerHTML = rows.map((row, index) => `
+    <tr>
+      <td><strong>#${index + 1}</strong></td>
+      <td>${escapeHTML(row.student["Student Name"])}</td>
+      <td>${escapeHTML(row.student.Section || "—")}</td>
+      <td><strong>${row.totalCompleted}</strong></td>
+      <td>🔥 ${row.currentStreak}</td>
+      <td>${row.longestStreak}</td>
+      <td>${row.todayDone ? "✅" : "❌"}</td>
+    </tr>
+  `).join("");
+}
+
+function renderChallengeStudentStatus() {
+  const container = document.getElementById("challengeStudentStatus");
+  const filter = document.getElementById("challengeSectionFilter");
+  if (!container || !filter) return;
+
+  const challenge = getTodayChallenge();
+  let students = [...allStudents];
+
+  if (filter.value !== "ALL") {
+    students = students.filter(
+      (s) => normalizeSection(s.Section) === normalizeSection(filter.value)
+    );
+  }
+
+  container.innerHTML = students.map((student) => {
+    const done = challenge && dailyChallengeResults.some(
+      (r) =>
+        Number(r.challenge_id) === Number(challenge.id)
+        && String(r.register_number) === String(student["Register Number"])
+        && r.completed
+    );
+    const stats = studentChallengeStats(student["Register Number"]);
+
+    return `
+      <div class="challenge-status-card ${done ? "done" : "pending"}">
+        <span class="challenge-status-icon">${done ? "✅" : "❌"}</span>
+        <div>
+          <strong>${escapeHTML(student["Student Name"])}</strong>
+          <small>${escapeHTML(student.Section || "—")} · ${escapeHTML(student["Register Number"])}</small>
+        </div>
+        <div class="challenge-mini-stats">
+          <span>🔥 ${stats.currentStreak}</span>
+          <span>✅ ${stats.totalCompleted}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function openDailyChallenge() {
+  renderDailyChallengeModal();
+  document.getElementById("dailyChallengeModal").hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeDailyChallenge() {
+  document.getElementById("dailyChallengeModal").hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function openPostChallenge() {
+  if (!isAdmin()) return;
+  document.getElementById("challengeDateInput").value = localISODate();
+  document.getElementById("postChallengeMessage").textContent = "";
+  document.getElementById("postChallengeModal").hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closePostChallenge() {
+  document.getElementById("postChallengeModal").hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function submitDailyChallenge(event) {
+  event.preventDefault();
+  if (!isAdmin()) return;
+
+  const challengeDate = document.getElementById("challengeDateInput").value;
+  const payload = {
+    challenge_date: challengeDate,
+    problem_number: Number(document.getElementById("challengeNumberInput").value) || null,
+    problem_title: document.getElementById("challengeTitleInput").value.trim(),
+    problem_slug: document.getElementById("challengeSlugInput").value.trim().toLowerCase(),
+    problem_url: document.getElementById("challengeUrlInput").value.trim(),
+    difficulty: document.getElementById("challengeDifficultyInput").value,
+    created_by: currentUser?.id || null
+  };
+
+  const message = document.getElementById("postChallengeMessage");
+  message.textContent = "Posting...";
+
+  const { error } = await supabaseClient
+    .from("daily_challenges")
+    .upsert(payload, { onConflict: "challenge_date" });
+
+  if (error) {
+    message.textContent = error.message;
+    message.className = "form-message error";
+    return;
+  }
+
+  message.textContent = "Challenge posted successfully.";
+  message.className = "form-message success";
+
+  await loadDailyChallengeData();
+  setTimeout(closePostChallenge, 500);
+}
+
+document.getElementById("dailyChallengeCardButton")
+  ?.addEventListener("click", openDailyChallenge);
+
+document.getElementById("closeDailyChallengeButton")
+  ?.addEventListener("click", closeDailyChallenge);
+
+document.querySelectorAll("[data-close-daily-challenge]")
+  .forEach((el) => el.addEventListener("click", closeDailyChallenge));
+
+document.getElementById("homePostChallengeButton")
+  ?.addEventListener("click", openPostChallenge);
+
+document.querySelectorAll("[data-close-post-challenge]")
+  .forEach((el) => el.addEventListener("click", closePostChallenge));
+
+document.getElementById("postChallengeForm")
+  ?.addEventListener("submit", submitDailyChallenge);
+
+document.getElementById("challengeSectionFilter")
+  ?.addEventListener("change", renderChallengeStudentStatus);
+
+
 // ============================================================
 // PUBLIC CHAMPIONS VIEW
 // ============================================================
@@ -2403,6 +2694,7 @@ async function initialize() {
   createClient();
   await loadData();
   await restoreAdminSession();
+  await loadDailyChallengeData();
   updateAdminUI();
 }
 

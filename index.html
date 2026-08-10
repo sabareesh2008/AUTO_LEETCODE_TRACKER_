@@ -137,6 +137,16 @@
           <strong>Top Performance</strong>
           <span>Section Championship + Section Champions + Overall Top 5</span>
         </button>
+
+        <button
+          id="dailyChallengeCardButton"
+          class="section-card daily-challenge-home-card"
+          type="button"
+        >
+          <span class="section-card-title">🎯 Daily Challenge</span>
+          <strong id="dailyChallengeHomeTitle">Loading...</strong>
+          <span id="dailyChallengeHomeProgress">Checking today's challenge</span>
+        </button>
       </div>
 
       <div class="home-admin-actions admin-only" hidden>
@@ -154,6 +164,10 @@
 
         <button id="homeFacultyAnalyticsButton" class="action-button secondary" type="button">
           Faculty Analytics
+        </button>
+
+        <button id="homePostChallengeButton" class="action-button secondary" type="button">
+          + Post Daily Challenge
         </button>
 
         <button id="homeAdminLogoutButton" class="action-button secondary" type="button">
@@ -508,6 +522,105 @@
 
 
 
+
+
+  <!-- DAILY CHALLENGE PUBLIC VIEW -->
+  <div id="dailyChallengeModal" class="daily-challenge-modal" hidden>
+    <div class="daily-challenge-backdrop" data-close-daily-challenge></div>
+    <section class="daily-challenge-panel" role="dialog" aria-modal="true">
+      <div class="daily-challenge-toolbar">
+        <div>
+          <span class="challenge-kicker">PROBLEM OF THE DAY</span>
+          <h2>🎯 Daily Challenge</h2>
+          <p>Complete the assigned problem on the same day to build your streak.</p>
+        </div>
+        <button id="closeDailyChallengeButton" class="action-button secondary" type="button">Close</button>
+      </div>
+
+      <article id="todayChallengeHero" class="today-challenge-hero">
+        <div>
+          <span id="todayChallengeDifficulty" class="challenge-difficulty">—</span>
+          <h3 id="todayChallengeTitle">No challenge posted today</h3>
+          <p id="todayChallengeDate">—</p>
+        </div>
+        <a id="todayChallengeLink" class="action-button primary" href="#" target="_blank" rel="noopener">Open Problem ↗</a>
+      </article>
+
+      <div class="challenge-kpi-grid">
+        <article><span>Completed</span><strong id="challengeCompletedCount">0</strong></article>
+        <article><span>Pending</span><strong id="challengePendingCount">0</strong></article>
+        <article><span>Completion</span><strong id="challengeCompletionRate">0%</strong></article>
+        <article><span>Total Students</span><strong id="challengeStudentCount">0</strong></article>
+      </div>
+
+      <article class="challenge-block">
+        <div class="challenge-block-head">
+          <div><span class="challenge-kicker">STREAK LEADERS</span><h3>🔥 Daily Challenge Leaderboard</h3></div>
+        </div>
+        <div class="challenge-table-wrap">
+          <table class="challenge-table">
+            <thead><tr><th>Rank</th><th>Student</th><th>Section</th><th>Total Completed</th><th>Current Streak</th><th>Longest Streak</th><th>Today</th></tr></thead>
+            <tbody id="challengeLeaderboardBody"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="challenge-block">
+        <div class="challenge-block-head">
+          <div><span class="challenge-kicker">TODAY</span><h3>Student Completion Status</h3></div>
+          <select id="challengeSectionFilter" class="form-input">
+            <option value="ALL">All Sections</option>
+            <option>ECE A</option><option>ECE B</option><option>ECE C</option>
+            <option>ECE D</option><option>ECE E</option><option>ECE F</option>
+          </select>
+        </div>
+        <div id="challengeStudentStatus" class="challenge-status-grid"></div>
+      </article>
+    </section>
+  </div>
+
+  <!-- ADMIN: POST DAILY CHALLENGE -->
+  <div id="postChallengeModal" class="profile-modal" hidden>
+    <div class="profile-modal-backdrop" data-close-post-challenge></div>
+    <section class="profile-modal-card">
+      <div class="modal-heading">
+        <div>
+          <span class="challenge-kicker">ADMIN</span>
+          <h2>Post Daily Challenge</h2>
+          <p>Post one LeetCode problem for a date. Re-posting the same date updates it.</p>
+        </div>
+      </div>
+
+      <form id="postChallengeForm">
+        <label class="form-label" for="challengeDateInput">Challenge Date</label>
+        <input id="challengeDateInput" class="form-input" type="date" required>
+
+        <label class="form-label" for="challengeNumberInput">LeetCode Problem Number</label>
+        <input id="challengeNumberInput" class="form-input" type="number" min="1" placeholder="1">
+
+        <label class="form-label" for="challengeTitleInput">Problem Title</label>
+        <input id="challengeTitleInput" class="form-input" type="text" placeholder="Two Sum" required>
+
+        <label class="form-label" for="challengeSlugInput">Problem Slug</label>
+        <input id="challengeSlugInput" class="form-input" type="text" placeholder="two-sum" required>
+
+        <label class="form-label" for="challengeUrlInput">LeetCode Problem URL</label>
+        <input id="challengeUrlInput" class="form-input" type="url" placeholder="https://leetcode.com/problems/two-sum/" required>
+
+        <label class="form-label" for="challengeDifficultyInput">Difficulty</label>
+        <select id="challengeDifficultyInput" class="form-input" required>
+          <option>Easy</option><option>Medium</option><option>Hard</option>
+        </select>
+
+        <p id="postChallengeMessage" class="form-message"></p>
+
+        <div class="modal-actions">
+          <button type="button" class="action-button secondary" data-close-post-challenge>Cancel</button>
+          <button type="submit" class="action-button primary">Post Challenge</button>
+        </div>
+      </form>
+    </section>
+  </div>
 
   <!-- =======================================================
        PUBLIC CHAMPIONS VIEW
