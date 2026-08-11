@@ -102,7 +102,8 @@ const exportColumns = [
   "Last 30 Days",
   "Easy",
   "Medium",
-  "Hard"
+  "Hard",
+  "Status"
 ];
 
 
@@ -602,6 +603,11 @@ function renderStudents(students) {
         <td>${toNumber(student.Easy)}</td>
         <td>${toNumber(student.Medium)}</td>
         <td>${toNumber(student.Hard)}</td>
+        <td>
+          <span class="student-status ${String(student.Status || "").toLowerCase() === "success" ? "status-success" : "status-error"}">
+            ${escapeHTML(student.Status || "Unknown")}
+          </span>
+        </td>
       </tr>
     `;
   }).join("");
@@ -2400,6 +2406,267 @@ function renderFacultyAnalytics() {
   renderFacultySectionSummary();
 }
 
+
+function facultyReportScopeName() {
+  const filter =
+    document.getElementById("analyticsSectionFilter");
+
+  return (
+    !filter || filter.value === "ALL"
+      ? "Overall_ECE"
+      : filter.value.replace(/\s+/g, "_")
+  );
+}
+
+function facultyReportDate() {
+  return localISODate();
+}
+
+function htmlEscapeForReport(value) {
+  return escapeHTML(value ?? "");
+}
+
+function buildFacultyReportHtml() {
+  const students = getFacultyAnalyticsStudents();
+  const scope =
+    document.getElementById("analyticsSectionFilter")?.value || "ALL";
+
+  const totalStudents = students.length;
+  const activeToday = students.filter(
+    (student) => toNumber(student["Solved Today"]) > 0
+  ).length;
+  const active7 = students.filter(
+    (student) => toNumber(student["Last 7 Days"]) > 0
+  ).length;
+  const inactive7 = Math.max(0, totalStudents - active7);
+  const total30 = students.reduce(
+    (sum, student) => sum + toNumber(student["Last 30 Days"]),
+    0
+  );
+  const avg30 =
+    totalStudents ? total30 / totalStudents : 0;
+
+  const todayChallenge = getTodayChallenge();
+  const todayCompleted =
+    todayChallenge
+      ? students.filter(
+          (student) =>
+            dailyChallengeResults.some(
+              (result) =>
+                Number(result.challenge_id) === Number(todayChallenge.id)
+                && String(result.register_number) === String(student["Register Number"])
+                && result.completed
+            )
+        ).length
+      : 0;
+
+  const todayRate =
+    totalStudents ? (todayCompleted / totalStudents) * 100 : 0;
+
+  const studentsOnStreak = students.filter(
+    (student) =>
+      studentChallengeStats(student["Register Number"]).currentStreak > 0
+  ).length;
+
+  const top10 = [...students]
+    .sort(compareChampionStudents)
+    .slice(0, 10);
+
+  const bottom10 = [...students]
+    .sort((a, b) =>
+      toNumber(a["Last 30 Days"]) - toNumber(b["Last 30 Days"])
+      || toNumber(a["Last 7 Days"]) - toNumber(b["Last 7 Days"])
+      || toNumber(a["Problems Solved"]) - toNumber(b["Problems Solved"])
+      || String(a["Student Name"] || "").localeCompare(
+        String(b["Student Name"] || "")
+      )
+    )
+    .slice(0, 10);
+
+  const best7 = [...allStudents]
+    .sort((a, b) =>
+      toNumber(b["Last 7 Days"]) - toNumber(a["Last 7 Days"])
+      || toNumber(b["Last 30 Days"]) - toNumber(a["Last 30 Days"])
+      || toNumber(b["Problems Solved"]) - toNumber(a["Problems Solved"])
+    )
+    .slice(0, 10);
+
+  const best30 = [...allStudents]
+    .sort(compareChampionStudents)
+    .slice(0, 10);
+
+  const sectionRows = SECTION_NAMES.map((section) => {
+    const sectionStudents = allStudents.filter(
+      (student) =>
+        normalizeSection(student.Section) === normalizeSection(section)
+    );
+
+    const section30 = sectionStudents.reduce(
+      (sum, student) => sum + toNumber(student["Last 30 Days"]),
+      0
+    );
+
+    const sectionActive7 = sectionStudents.filter(
+      (student) => toNumber(student["Last 7 Days"]) > 0
+    ).length;
+
+    const challengeStats = getSectionChallengeStats(section);
+
+    return {
+      section,
+      students: sectionStudents.length,
+      active7: sectionActive7,
+      solves30: section30,
+      avg30: sectionStudents.length ? section30 / sectionStudents.length : 0,
+      todayCompleted: challengeStats.todayCompleted,
+      todayRate: challengeStats.todayRate,
+      onStreak: challengeStats.studentsWithStreak
+    };
+  });
+
+  function studentRows(rows, primaryLabel) {
+    return rows.map((student, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${htmlEscapeForReport(student["Register Number"])}</td>
+        <td>${htmlEscapeForReport(student["Student Name"])}</td>
+        <td>${htmlEscapeForReport(student.Section || "")}</td>
+        <td>${toNumber(student["Last 7 Days"])}</td>
+        <td>${toNumber(student["Last 30 Days"])}</td>
+        <td>${toNumber(student["Problems Solved"])}</td>
+        <td>${htmlEscapeForReport(student.Status || "")}</td>
+      </tr>
+    `).join("");
+  }
+
+  return `
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; }
+        h1, h2 { margin-bottom: 6px; }
+        p { margin-top: 0; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+        th, td { border: 1px solid #999; padding: 7px; text-align: left; }
+        th { background: #e9eef5; }
+        .summary td:first-child { font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <h1>ECE LeetCode Faculty Analytics Report</h1>
+      <p>Scope: ${htmlEscapeForReport(scope === "ALL" ? "All Sections" : scope)}</p>
+      <p>Report Date: ${facultyReportDate()}</p>
+
+      <h2>Summary</h2>
+      <table class="summary">
+        <tr><td>Total Students</td><td>${totalStudents}</td></tr>
+        <tr><td>Active Today</td><td>${activeToday}</td></tr>
+        <tr><td>Active Last 7 Days</td><td>${active7}</td></tr>
+        <tr><td>Inactive Last 7 Days</td><td>${inactive7}</td></tr>
+        <tr><td>Total 30-Day Solves</td><td>${total30}</td></tr>
+        <tr><td>Average 30-Day Solves / Student</td><td>${avg30.toFixed(1)}</td></tr>
+        <tr><td>Today's Challenge Completed</td><td>${todayCompleted} / ${totalStudents}</td></tr>
+        <tr><td>Today's Challenge Completion</td><td>${todayRate.toFixed(1)}%</td></tr>
+        <tr><td>Students on Challenge Streak</td><td>${studentsOnStreak}</td></tr>
+      </table>
+
+      <h2>Section Summary</h2>
+      <table>
+        <tr>
+          <th>Section</th>
+          <th>Students</th>
+          <th>Active 7 Days</th>
+          <th>30-Day Solves</th>
+          <th>Avg / Student</th>
+          <th>Challenge Today</th>
+          <th>Challenge %</th>
+          <th>On Streak</th>
+        </tr>
+        ${sectionRows.map((row) => `
+          <tr>
+            <td>${row.section}</td>
+            <td>${row.students}</td>
+            <td>${row.active7}</td>
+            <td>${row.solves30}</td>
+            <td>${row.avg30.toFixed(1)}</td>
+            <td>${row.todayCompleted} / ${row.students}</td>
+            <td>${row.todayRate.toFixed(1)}%</td>
+            <td>${row.onStreak}</td>
+          </tr>
+        `).join("")}
+      </table>
+
+      <h2>Top 10 — Selected Scope</h2>
+      <table>
+        <tr><th>Rank</th><th>Register No</th><th>Student</th><th>Section</th><th>7 Days</th><th>30 Days</th><th>Total</th><th>Status</th></tr>
+        ${studentRows(top10)}
+      </table>
+
+      <h2>Bottom 10 — Selected Scope</h2>
+      <table>
+        <tr><th>Position</th><th>Register No</th><th>Student</th><th>Section</th><th>7 Days</th><th>30 Days</th><th>Total</th><th>Status</th></tr>
+        ${studentRows(bottom10)}
+      </table>
+
+      <h2>Overall Best — Last 7 Days</h2>
+      <table>
+        <tr><th>Rank</th><th>Register No</th><th>Student</th><th>Section</th><th>7 Days</th><th>30 Days</th><th>Total</th><th>Status</th></tr>
+        ${studentRows(best7)}
+      </table>
+
+      <h2>Overall Best — Last 30 Days</h2>
+      <table>
+        <tr><th>Rank</th><th>Register No</th><th>Student</th><th>Section</th><th>7 Days</th><th>30 Days</th><th>Total</th><th>Status</th></tr>
+        ${studentRows(best30)}
+      </table>
+    </body>
+    </html>
+  `;
+}
+
+function downloadFacultyExcelReport() {
+  const htmlReport = buildFacultyReportHtml();
+
+  const blob = new Blob(
+    ["\uFEFF" + htmlReport],
+    {
+      type:
+        "application/vnd.ms-excel;charset=utf-8"
+    }
+  );
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download =
+    `Faculty_Analytics_${facultyReportScopeName()}_${facultyReportDate()}.xls`;
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+function downloadFacultyPdfReport() {
+  document.body.classList.add(
+    "printing-faculty-report"
+  );
+
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove(
+      "printing-faculty-report"
+    );
+  }, 500);
+}
+
 function openFacultyAnalytics() {
   if (!isAdmin()) {
     return;
@@ -2462,6 +2729,26 @@ if (facultyButton) {
   facultyButton.addEventListener(
     "click",
     openFacultyAnalytics
+  );
+}
+
+const downloadFacultyExcelButton =
+  document.getElementById("downloadFacultyExcel");
+
+const downloadFacultyPdfButton =
+  document.getElementById("downloadFacultyPdf");
+
+if (downloadFacultyExcelButton) {
+  downloadFacultyExcelButton.addEventListener(
+    "click",
+    downloadFacultyExcelReport
+  );
+}
+
+if (downloadFacultyPdfButton) {
+  downloadFacultyPdfButton.addEventListener(
+    "click",
+    downloadFacultyPdfReport
   );
 }
 

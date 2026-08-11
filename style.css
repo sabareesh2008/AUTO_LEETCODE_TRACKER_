@@ -2769,3 +2769,106 @@ body.modal-open {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+
+/* ==========================================================
+   RESTORED STATUS COLUMN
+   ========================================================== */
+
+.student-status {
+    display: inline-flex;
+    align-items: center;
+    max-width: 180px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: normal;
+}
+
+.status-success {
+    color: #86efac;
+    background: rgba(34, 197, 94, 0.10);
+    border: 1px solid rgba(34, 197, 94, 0.18);
+}
+
+.status-error {
+    color: #fda4af;
+    background: rgba(244, 63, 94, 0.09);
+    border: 1px solid rgba(244, 63, 94, 0.18);
+}
+
+/* Faculty report downloads */
+.faculty-download-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 9px;
+}
+
+@media (max-width: 700px) {
+    .faculty-download-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* Print only Faculty Analytics when Download PDF is selected */
+@media print {
+    body.printing-faculty-report > * {
+        display: none !important;
+    }
+
+    body.printing-faculty-report
+    #facultyAnalyticsModal {
+        display: block !important;
+        position: static !important;
+        overflow: visible !important;
+        padding: 0 !important;
+    }
+
+    body.printing-faculty-report
+    .faculty-analytics-backdrop,
+    body.printing-faculty-report
+    .faculty-download-actions,
+    body.printing-faculty-report
+    .analytics-filter-row {
+        display: none !important;
+    }
+
+    body.printing-faculty-report
+    .faculty-analytics-panel {
+        width: 100% !important;
+        min-height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: white !important;
+        color: black !important;
+    }
+
+    body.printing-faculty-report
+    .analytics-card,
+    body.printing-faculty-report
+    .analytics-kpi-card {
+        break-inside: avoid;
+        background: white !important;
+        color: black !important;
+        border-color: #bbb !important;
+    }
+
+    body.printing-faculty-report
+    .analytics-table th,
+    body.printing-faculty-report
+    .analytics-table td,
+    body.printing-faculty-report
+    .faculty-analytics-toolbar p,
+    body.printing-faculty-report
+    .analytics-kicker,
+    body.printing-faculty-report
+    .analytics-card-note {
+        color: black !important;
+    }
+}
