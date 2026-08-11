@@ -573,9 +573,26 @@ function renderStudents(students) {
 
     return `
       <tr>
-        <td><span class="rank-badge">${escapeHTML(student["Overall Rank"] || "–")}</span></td>
-        <td><span class="rank-badge section-rank-badge">${escapeHTML(student["Section Rank"] || "–")}</span></td>
-        <td>${escapeHTML(student["Register Number"])}</td>
+        <!-- 1. Overall Rank -->
+        <td>
+          <span class="rank-badge">
+            ${escapeHTML(student["Overall Rank"] || "–")}
+          </span>
+        </td>
+
+        <!-- 2. Section Rank -->
+        <td>
+          <span class="rank-badge section-rank-badge">
+            ${escapeHTML(student["Section Rank"] || "–")}
+          </span>
+        </td>
+
+        <!-- 3. Register Number -->
+        <td class="register-number-cell">
+          ${escapeHTML(student["Register Number"])}
+        </td>
+
+        <!-- 4. Student -->
         <td>
           <button
             class="student-name student-profile-link"
@@ -586,25 +603,66 @@ function renderStudents(students) {
             ${escapeHTML(student["Student Name"])} ↗
           </button>
         </td>
+
+        <!-- 5. LeetCode -->
         <td>
           <a
             class="leetcode-link"
-            href="${escapeHTML(student["LeetCode Link"] || `https://leetcode.com/u/${student["LeetCode Username"]}/`)}"
+            href="${escapeHTML(
+              student["LeetCode Link"]
+              || `https://leetcode.com/u/${student["LeetCode Username"]}/`
+            )}"
             target="_blank"
             rel="noopener noreferrer"
           >
             ${escapeHTML(student["LeetCode Username"])}
           </a>
         </td>
-        <td><strong>${toNumber(student["Problems Solved"])}</strong></td>
-        <td>${toNumber(student["Solved Today"])}</td>
-        <td>${toNumber(student["Last 7 Days"])}</td>
-        <td>${toNumber(student["Last 30 Days"])}</td>
-        <td>${toNumber(student.Easy)}</td>
-        <td>${toNumber(student.Medium)}</td>
-        <td>${toNumber(student.Hard)}</td>
+
+        <!-- 6. 30 Days -->
         <td>
-          <span class="student-status ${String(student.Status || "").toLowerCase() === "success" ? "status-success" : "status-error"}">
+          <strong>${toNumber(student["Last 30 Days"])}</strong>
+        </td>
+
+        <!-- 7. 7 Days -->
+        <td>
+          ${toNumber(student["Last 7 Days"])}
+        </td>
+
+        <!-- 8. Today -->
+        <td>
+          ${toNumber(student["Solved Today"])}
+        </td>
+
+        <!-- 9. Total -->
+        <td>
+          <strong>${toNumber(student["Problems Solved"])}</strong>
+        </td>
+
+        <!-- 10. Easy -->
+        <td>
+          ${toNumber(student.Easy)}
+        </td>
+
+        <!-- 11. Medium -->
+        <td>
+          ${toNumber(student.Medium)}
+        </td>
+
+        <!-- 12. Hard -->
+        <td>
+          ${toNumber(student.Hard)}
+        </td>
+
+        <!-- 13. Status -->
+        <td>
+          <span
+            class="student-status ${
+              String(student.Status || "").toLowerCase() === "success"
+                ? "status-success"
+                : "status-error"
+            }"
+          >
             ${escapeHTML(student.Status || "Unknown")}
           </span>
         </td>
