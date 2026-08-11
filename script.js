@@ -1497,7 +1497,7 @@ function renderChallengeLeaderboard() {
 
   body.innerHTML = rows.map((row, index) => `
     <tr>
-      <td><strong>#${index + 1}</strong></td>
+      <td><strong>${championRankBadge(index + 1)}</strong></td>
       <td>${escapeHTML(row.student["Student Name"])}</td>
       <td>${escapeHTML(row.student.Section || "—")}</td>
       <td><strong>${row.totalCompleted}</strong></td>
@@ -2219,38 +2219,37 @@ function renderFacultyTopStudents(students) {
   `).join("");
 }
 
-function renderFacultyInactiveStudents(students) {
+function renderFacultyBottomStudents(students) {
   const body =
-    document.getElementById("analyticsInactiveStudents");
+    document.getElementById("analyticsBottomStudents");
 
   if (!body) return;
 
   const rows = [...students]
-    .filter(
-      (student) =>
-        toNumber(student["Last 7 Days"]) === 0
-    )
     .sort((a, b) =>
       toNumber(a["Last 30 Days"]) - toNumber(b["Last 30 Days"])
+      || toNumber(a["Last 7 Days"]) - toNumber(b["Last 7 Days"])
+      || toNumber(a["Problems Solved"]) - toNumber(b["Problems Solved"])
       || String(a["Student Name"] || "").localeCompare(
         String(b["Student Name"] || "")
       )
     )
-    .slice(0, 20);
+    .slice(0, 10);
 
   if (!rows.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="5" class="analytics-empty">
-          No inactive students in this scope.
+        <td colspan="6" class="analytics-empty">
+          No students in this scope.
         </td>
       </tr>
     `;
     return;
   }
 
-  body.innerHTML = rows.map((student) => `
+  body.innerHTML = rows.map((student, index) => `
     <tr>
+      <td><strong>#${index + 1}</strong></td>
       <td>
         <button
           type="button"
@@ -2260,13 +2259,102 @@ function renderFacultyInactiveStudents(students) {
           ${escapeHTML(student["Student Name"])}
         </button>
       </td>
-
       <td>${escapeHTML(student.Section || "–")}</td>
+      <td><strong>${toNumber(student["Last 30 Days"])}</strong></td>
       <td>${toNumber(student["Last 7 Days"])}</td>
-      <td>${toNumber(student["Last 30 Days"])}</td>
-      <td>${escapeHTML(student["Last Solved"] || "–")}</td>
+      <td>${toNumber(student["Problems Solved"])}</td>
     </tr>
   `).join("");
+}
+
+function renderFacultyOverallBest7Days() {
+  const body =
+    document.getElementById("analyticsOverallBest7");
+
+  if (!body) return;
+
+  const rows = [...allStudents]
+    .sort((a, b) =>
+      toNumber(b["Last 7 Days"]) - toNumber(a["Last 7 Days"])
+      || toNumber(b["Last 30 Days"]) - toNumber(a["Last 30 Days"])
+      || toNumber(b["Problems Solved"]) - toNumber(a["Problems Solved"])
+      || String(a["Student Name"] || "").localeCompare(
+        String(b["Student Name"] || "")
+      )
+    )
+    .slice(0, 10);
+
+  body.innerHTML = rows.length
+    ? rows.map((student, index) => `
+        <tr>
+          <td><strong>${championRankBadge(index + 1)}</strong></td>
+          <td>
+            <button
+              type="button"
+              class="analytics-student-link"
+              data-analytics-profile="${escapeHTML(student["Register Number"])}"
+            >
+              ${escapeHTML(student["Student Name"])}
+            </button>
+          </td>
+          <td>${escapeHTML(student.Section || "–")}</td>
+          <td><strong>${toNumber(student["Last 7 Days"])}</strong></td>
+          <td>${toNumber(student["Last 30 Days"])}</td>
+          <td>${toNumber(student["Problems Solved"])}</td>
+        </tr>
+      `).join("")
+    : `
+      <tr>
+        <td colspan="6" class="analytics-empty">
+          No student data available.
+        </td>
+      </tr>
+    `;
+}
+
+function renderFacultyOverallBest30Days() {
+  const body =
+    document.getElementById("analyticsOverallBest30");
+
+  if (!body) return;
+
+  const rows = [...allStudents]
+    .sort((a, b) =>
+      toNumber(b["Last 30 Days"]) - toNumber(a["Last 30 Days"])
+      || toNumber(b["Last 7 Days"]) - toNumber(a["Last 7 Days"])
+      || toNumber(b["Problems Solved"]) - toNumber(a["Problems Solved"])
+      || String(a["Student Name"] || "").localeCompare(
+        String(b["Student Name"] || "")
+      )
+    )
+    .slice(0, 10);
+
+  body.innerHTML = rows.length
+    ? rows.map((student, index) => `
+        <tr>
+          <td><strong>${championRankBadge(index + 1)}</strong></td>
+          <td>
+            <button
+              type="button"
+              class="analytics-student-link"
+              data-analytics-profile="${escapeHTML(student["Register Number"])}"
+            >
+              ${escapeHTML(student["Student Name"])}
+            </button>
+          </td>
+          <td>${escapeHTML(student.Section || "–")}</td>
+          <td><strong>${toNumber(student["Last 30 Days"])}</strong></td>
+          <td>${toNumber(student["Last 7 Days"])}</td>
+          <td>${toNumber(student["Problems Solved"])}</td>
+        </tr>
+      `).join("")
+    : `
+      <tr>
+        <td colspan="6" class="analytics-empty">
+          No student data available.
+        </td>
+      </tr>
+    `;
 }
 
 function renderFacultySectionSummary() {
@@ -2385,7 +2473,12 @@ function renderFacultyAnalytics() {
   renderFacultySectionBars();
   renderFacultyDifficulty(students);
   renderFacultyTopStudents(students);
-  renderFacultyInactiveStudents(students);
+  renderFacultyBottomStudents(students);
+
+  // Overall best tables always use all ECE A-F students.
+  renderFacultyOverallBest7Days();
+  renderFacultyOverallBest30Days();
+
   renderFacultyChallengeSectionSummary();
   renderFacultySectionSummary();
 }

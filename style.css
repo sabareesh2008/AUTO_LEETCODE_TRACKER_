@@ -2722,3 +2722,32 @@ body.modal-open {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* FACULTY TOP/BOTTOM + OVERALL BEST */
+.analytics-card-note {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.analytics-highlight-card {
+    border-color: rgba(52, 211, 153, 0.14);
+}
+
+.analytics-attention-card {
+    border-color: rgba(251, 113, 133, 0.14);
+}
+
+.analytics-attention-card .analytics-kicker {
+    color: #fb7185;
+}
+
+.analytics-overall-best-card {
+    border-color: rgba(96, 165, 250, 0.14);
+}
+
+.analytics-overall-best-card .analytics-kicker {
+    color: #60a5fa;
+}

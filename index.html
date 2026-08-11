@@ -846,11 +846,14 @@
       </div>
 
       <div class="analytics-grid-two">
-        <article class="analytics-card">
+        <article class="analytics-card analytics-highlight-card">
           <div class="analytics-card-heading">
             <div>
-              <span class="analytics-kicker">TOP PERFORMERS</span>
-              <h3>Top 10 · Last 30 Days</h3>
+              <span class="analytics-kicker">SELECTED SCOPE</span>
+              <h3>🏆 Top 10 Students</h3>
+              <p class="analytics-card-note">
+                Ranked by 30 Days → 7 Days → Total Solved
+              </p>
             </div>
           </div>
 
@@ -871,11 +874,14 @@
           </div>
         </article>
 
-        <article class="analytics-card">
+        <article class="analytics-card analytics-attention-card">
           <div class="analytics-card-heading">
             <div>
-              <span class="analytics-kicker">ATTENTION</span>
-              <h3>Low / No Recent Activity</h3>
+              <span class="analytics-kicker">SELECTED SCOPE</span>
+              <h3>⚠️ Bottom 10 Students</h3>
+              <p class="analytics-card-note">
+                Lowest recent activity in the selected section / overall
+              </p>
             </div>
           </div>
 
@@ -883,14 +889,73 @@
             <table class="analytics-table">
               <thead>
                 <tr>
+                  <th>Position</th>
+                  <th>Student</th>
+                  <th>Section</th>
+                  <th>30 Days</th>
+                  <th>7 Days</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="analyticsBottomStudents"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+
+      <div class="analytics-grid-two">
+        <article class="analytics-card analytics-overall-best-card">
+          <div class="analytics-card-heading">
+            <div>
+              <span class="analytics-kicker">OVERALL ECE</span>
+              <h3>🔥 Best · Last 7 Days</h3>
+              <p class="analytics-card-note">
+                Top 10 students across ECE A–F by 7-day solves
+              </p>
+            </div>
+          </div>
+
+          <div class="analytics-table-wrap">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
                   <th>Student</th>
                   <th>Section</th>
                   <th>7 Days</th>
                   <th>30 Days</th>
-                  <th>Last Solved</th>
+                  <th>Total</th>
                 </tr>
               </thead>
-              <tbody id="analyticsInactiveStudents"></tbody>
+              <tbody id="analyticsOverallBest7"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="analytics-card analytics-overall-best-card">
+          <div class="analytics-card-heading">
+            <div>
+              <span class="analytics-kicker">OVERALL ECE</span>
+              <h3>🏆 Best · Last 30 Days</h3>
+              <p class="analytics-card-note">
+                Top 10 students across ECE A–F by 30-day solves
+              </p>
+            </div>
+          </div>
+
+          <div class="analytics-table-wrap">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Student</th>
+                  <th>Section</th>
+                  <th>30 Days</th>
+                  <th>7 Days</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="analyticsOverallBest30"></tbody>
             </table>
           </div>
         </article>
