@@ -2751,3 +2751,21 @@ body.modal-open {
 .analytics-overall-best-card .analytics-kicker {
     color: #60a5fa;
 }
+
+
+/* MEANINGFUL DATA CLEANUP */
+.analytics-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+    .analytics-kpi-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .analytics-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

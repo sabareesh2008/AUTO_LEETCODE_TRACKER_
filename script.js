@@ -96,18 +96,13 @@ const exportColumns = [
   "Student Name",
   "LeetCode Username",
   "LeetCode Link",
-  "Last 30 Days",
-  "Last 7 Days",
-  "Solved Today",
   "Problems Solved",
-  "Total Submissions",
+  "Solved Today",
+  "Last 7 Days",
+  "Last 30 Days",
   "Easy",
   "Medium",
-  "Hard",
-  "Last Problem",
-  "Last Solved",
-  "Status",
-  "Updated At"
+  "Hard"
 ];
 
 
@@ -576,16 +571,11 @@ function renderStudents(students) {
           : "status-error";
 
     return `
-      <tr style="animation-delay:${Math.min(index * 25, 300)}ms">
+      <tr>
+        <td><span class="rank-badge">${escapeHTML(student["Overall Rank"] || "–")}</span></td>
+        <td><span class="rank-badge section-rank-badge">${escapeHTML(student["Section Rank"] || "–")}</span></td>
+        <td>${escapeHTML(student["Register Number"])}</td>
         <td>
-          <span class="rank-badge ${rankClass(rank)}">
-            ${escapeHTML(rank || "–")}
-          </span>
-        </td>
-
-        ${sectionCell}
-
-        <td class="student-cell">
           <button
             class="student-name student-profile-link"
             type="button"
@@ -594,43 +584,24 @@ function renderStudents(students) {
           >
             ${escapeHTML(student["Student Name"])} ↗
           </button>
-
-          <span class="register-number">
-            ${escapeHTML(student["Register Number"])}
-          </span>
         </td>
-
         <td>
           <a
-            class="profile-link"
-            href="${escapeHTML(student["LeetCode Link"])}"
+            class="leetcode-link"
+            href="${escapeHTML(student["LeetCode Link"] || `https://leetcode.com/u/${student["LeetCode Username"]}/`)}"
             target="_blank"
             rel="noopener noreferrer"
           >
             ${escapeHTML(student["LeetCode Username"])}
           </a>
         </td>
-
-        <td>
-          <span class="month-score">
-            ${escapeHTML(student["Last 30 Days"] || "–")}
-          </span>
-        </td>
-
-        <td class="numeric">${escapeHTML(student["Last 7 Days"] || "–")}</td>
-        <td class="numeric">${escapeHTML(student["Solved Today"] || "–")}</td>
-        <td class="numeric">${escapeHTML(student["Problems Solved"] || "–")}</td>
-        <td class="numeric">${escapeHTML(student.Easy || "–")}</td>
-        <td class="numeric">${escapeHTML(student.Medium || "–")}</td>
-        <td class="numeric">${escapeHTML(student.Hard || "–")}</td>
-        <td>${escapeHTML(student["Last Problem"] || "–")}</td>
-        <td>${escapeHTML(student["Last Solved"] || "–")}</td>
-
-        <td>
-          <span class="status ${statusClass}">
-            ${escapeHTML(status || "Unknown")}
-          </span>
-        </td>
+        <td><strong>${toNumber(student["Problems Solved"])}</strong></td>
+        <td>${toNumber(student["Solved Today"])}</td>
+        <td>${toNumber(student["Last 7 Days"])}</td>
+        <td>${toNumber(student["Last 30 Days"])}</td>
+        <td>${toNumber(student.Easy)}</td>
+        <td>${toNumber(student.Medium)}</td>
+        <td>${toNumber(student.Hard)}</td>
       </tr>
     `;
   }).join("");
@@ -1339,50 +1310,50 @@ function getSectionChallengeStats(section) {
 
   const stats = students.map(
     (student) =>
-      studentChallengeStats(
-        student["Register Number"]
-      )
+      studentChallengeStats(student["Register Number"])
   );
 
   const totalCompleted = stats.reduce(
-    (sum, stat) =>
-      sum + stat.totalCompleted,
+    (sum, stat) => sum + stat.totalCompleted,
     0
   );
 
   const studentsWithStreak = stats.filter(
-    (stat) =>
-      stat.currentStreak > 0
+    (stat) => stat.currentStreak > 0
   ).length;
-
-  const bestCurrentStreak = Math.max(
-    0,
-    ...stats.map(
-      (stat) =>
-        stat.currentStreak
-    )
-  );
-
-  const bestLongestStreak = Math.max(
-    0,
-    ...stats.map(
-      (stat) =>
-        stat.longestStreak
-    )
-  );
 
   const averageCompleted =
     students.length > 0
       ? totalCompleted / students.length
       : 0;
 
+  const todayChallenge = getTodayChallenge();
+
+  const todayCompleted =
+    todayChallenge
+      ? students.filter(
+          (student) =>
+            dailyChallengeResults.some(
+              (result) =>
+                Number(result.challenge_id) === Number(todayChallenge.id)
+                && String(result.register_number) === String(student["Register Number"])
+                && result.completed
+            )
+        ).length
+      : 0;
+
+  const todayRate =
+    students.length > 0
+      ? (todayCompleted / students.length) * 100
+      : 0;
+
   return {
     students: students.length,
     totalCompleted,
     studentsWithStreak,
-    bestCurrentStreak,
-    bestLongestStreak,
-    averageCompleted
+    averageCompleted,
+    todayCompleted,
+    todayRate
   };
 }
 
@@ -1390,26 +1361,19 @@ function renderSectionChallengeMiniStats() {
   SECTION_NAMES.forEach((section) => {
     const key = section.replace(/\s+/g, "");
     const completedElement =
-      document.getElementById(
-        `challengeCompleted${key}`
-      );
+      document.getElementById(`challengeCompleted${key}`);
     const streakElement =
-      document.getElementById(
-        `challengeBestStreak${key}`
-      );
+      document.getElementById(`challengeBestStreak${key}`);
 
-    if (!completedElement || !streakElement) {
-      return;
-    }
+    if (!completedElement || !streakElement) return;
 
-    const stats =
-      getSectionChallengeStats(section);
+    const stats = getSectionChallengeStats(section);
 
     completedElement.textContent =
-      stats.totalCompleted;
+      `${stats.todayCompleted}/${stats.students}`;
 
     streakElement.textContent =
-      stats.bestCurrentStreak;
+      stats.studentsWithStreak;
   });
 }
 
@@ -2009,78 +1973,55 @@ function renderFacultyAnalyticsKpis(students) {
     Math.max(0, totalStudents - active7Days);
 
   const solves30Days = students.reduce(
-    (sum, student) =>
-      sum + toNumber(student["Last 30 Days"]),
+    (sum, student) => sum + toNumber(student["Last 30 Days"]),
     0
   );
 
   const average30 =
-    totalStudents > 0
-      ? solves30Days / totalStudents
-      : 0;
+    totalStudents > 0 ? solves30Days / totalStudents : 0;
 
-  document.getElementById("analyticsTotalStudents").textContent =
-    totalStudents;
+  document.getElementById("analyticsTotalStudents").textContent = totalStudents;
+  document.getElementById("analyticsActiveToday").textContent = activeToday;
+  document.getElementById("analyticsActive7Days").textContent = active7Days;
+  document.getElementById("analyticsInactive7Days").textContent = inactive7Days;
+  document.getElementById("analytics30DaySolves").textContent = solves30Days;
+  document.getElementById("analyticsAverage30").textContent = average30.toFixed(1);
 
-  document.getElementById("analyticsActiveToday").textContent =
-    activeToday;
-
-  document.getElementById("analyticsActive7Days").textContent =
-    active7Days;
-
-  document.getElementById("analyticsInactive7Days").textContent =
-    inactive7Days;
-
-  document.getElementById("analytics30DaySolves").textContent =
-    solves30Days;
-
-  document.getElementById("analyticsAverage30").textContent =
-    average30.toFixed(1);
-
-  const challengeStats =
-    students.map(
-      (student) =>
-        studentChallengeStats(
-          student["Register Number"]
-        )
-    );
-
-  const totalChallengeCompleted =
-    challengeStats.reduce(
-      (sum, stat) =>
-        sum + stat.totalCompleted,
-      0
-    );
+  const challengeStats = students.map(
+    (student) => studentChallengeStats(student["Register Number"])
+  );
 
   const activeChallengeStreaks =
-    challengeStats.filter(
-      (stat) =>
-        stat.currentStreak > 0
-    ).length;
+    challengeStats.filter((stat) => stat.currentStreak > 0).length;
 
-  const bestCurrentChallengeStreak =
-    Math.max(
-      0,
-      ...challengeStats.map(
-        (stat) =>
-          stat.currentStreak
-      )
-    );
+  const todayChallenge = getTodayChallenge();
 
-  document.getElementById(
-    "analyticsChallengeCompleted"
-  ).textContent =
-    totalChallengeCompleted;
+  const todayCompleted =
+    todayChallenge
+      ? students.filter(
+          (student) =>
+            dailyChallengeResults.some(
+              (result) =>
+                Number(result.challenge_id) === Number(todayChallenge.id)
+                && String(result.register_number) === String(student["Register Number"])
+                && result.completed
+            )
+        ).length
+      : 0;
 
-  document.getElementById(
-    "analyticsChallengeActiveStreaks"
-  ).textContent =
+  const todayRate =
+    totalStudents > 0
+      ? (todayCompleted / totalStudents) * 100
+      : 0;
+
+  document.getElementById("analyticsChallengeTodayRate").textContent =
+    `${todayRate.toFixed(1)}%`;
+
+  document.getElementById("analyticsChallengeTodayCount").textContent =
+    `${todayCompleted} / ${totalStudents} completed`;
+
+  document.getElementById("analyticsChallengeActiveStreaks").textContent =
     activeChallengeStreaks;
-
-  document.getElementById(
-    "analyticsChallengeBestStreak"
-  ).textContent =
-    bestCurrentChallengeStreak;
 }
 
 function renderFacultySectionBars() {
@@ -2406,47 +2347,23 @@ function renderFacultySectionSummary() {
 
 function renderFacultyChallengeSectionSummary() {
   const body =
-    document.getElementById(
-      "analyticsChallengeSectionSummary"
-    );
+    document.getElementById("analyticsChallengeSectionSummary");
 
-  if (!body) {
-    return;
-  }
+  if (!body) return;
 
-  body.innerHTML =
-    SECTION_NAMES.map((section) => {
-      const stats =
-        getSectionChallengeStats(section);
+  body.innerHTML = SECTION_NAMES.map((section) => {
+    const stats = getSectionChallengeStats(section);
 
-      return `
-        <tr>
-          <td>
-            <strong>${escapeHTML(section)}</strong>
-          </td>
-
-          <td>
-            <strong>${stats.totalCompleted}</strong>
-          </td>
-
-          <td>
-            ${stats.studentsWithStreak}
-          </td>
-
-          <td>
-            🔥 ${stats.bestCurrentStreak}
-          </td>
-
-          <td>
-            🏆 ${stats.bestLongestStreak}
-          </td>
-
-          <td>
-            ${stats.averageCompleted.toFixed(1)}
-          </td>
-        </tr>
-      `;
-    }).join("");
+    return `
+      <tr>
+        <td><strong>${escapeHTML(section)}</strong></td>
+        <td><strong>${stats.todayCompleted} / ${stats.students}</strong></td>
+        <td>${stats.todayRate.toFixed(1)}%</td>
+        <td>🔥 ${stats.studentsWithStreak}</td>
+        <td>${stats.averageCompleted.toFixed(1)}</td>
+      </tr>
+    `;
+  }).join("");
 }
 
 function renderFacultyAnalytics() {
