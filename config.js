@@ -7,5 +7,6 @@
 
 window.APP_CONFIG = {
   SUPABASE_URL: "https://ynoikeairkdqfcdwmfms.supabase.co",
+  CODE_RUNNER_URL: "http://localhost:8080",
   SUPABASE_ANON_KEY: "sb_publishable_r8sxx-O110jZdq6mqFIDVg_xe0P64VO"
 };

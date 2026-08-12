@@ -173,6 +173,17 @@
         </button>
       </div>
 
+      
+      <section class="coding-test-home-card">
+        <div>
+          <span class="section-card-title">💻 Daily Coding Test</span>
+          <p>Timed Java assessment with compiler, test cases and automatic scoring.</p>
+        </div>
+        <button id="openCodingTestButton" class="action-button primary" type="button">
+          Open Coding Test
+        </button>
+      </section>
+
       <div class="home-admin-actions admin-only" hidden>
         <button id="homeAddProfileButton" class="action-button primary" type="button">
           + Add Profile
@@ -186,6 +197,9 @@
           Manage Students
         </button>
 
+        <button id="manageCodingTestsButton" class="action-button secondary" type="button">
+          Manage Coding Tests
+        </button>
         <button id="homeFacultyAnalyticsButton" class="action-button secondary" type="button">
           Faculty Analytics
         </button>
@@ -1207,8 +1221,429 @@
     ECE LeetCode Department Tracker · Supabase · GitHub Actions
   </footer>
 
+
+  <!-- ======================================================
+       DAILY CODING TEST
+       ====================================================== -->
+  <div id="codingTestModal" class="coding-test-modal" hidden>
+    <div class="coding-test-backdrop"></div>
+    <section class="coding-test-shell" aria-label="Daily Coding Test">
+      <header class="coding-test-topbar">
+        <div>
+          <span class="coding-test-kicker">DAILY CODING TEST</span>
+          <h2 id="codingTestTitle">Coding Test</h2>
+        </div>
+        <div class="coding-test-timer-wrap">
+          <span>TIME LEFT</span>
+          <strong id="codingTestTimer">00:00:00</strong>
+        </div>
+      </header>
+
+      <div id="codingTestLobby" class="coding-test-lobby">
+        <div class="coding-test-lobby-card">
+          <h3 id="codingLobbyTitle">No active test</h3>
+          <p id="codingLobbyMeta">The next published coding test will appear here.</p>
+          <div class="coding-instructions">
+            <strong>Test rules</strong>
+            <ul>
+              <li>Java only. The compiler runs on the secure code-runner service.</li>
+              <li>The timer continues after refresh and is based on the saved expiry time.</li>
+              <li>Copy, paste, cut and right-click are blocked inside the test.</li>
+              <li>Tab switching and fullscreen exits are recorded as violations.</li>
+              <li>When time reaches zero, the latest saved code is submitted automatically.</li>
+            </ul>
+          </div>
+          <label class="coding-identity-label">
+            Register Number
+            <input id="codingRegisterNumber" class="form-input" autocomplete="off" placeholder="Enter your register number">
+          </label>
+          <div class="coding-lobby-actions">
+            <button id="closeCodingTestButton" class="action-button secondary" type="button">Close</button>
+            <button id="startCodingTestButton" class="action-button primary" type="button">Start Test</button>
+          </div>
+          <p id="codingLobbyMessage" class="form-message"></p>
+        </div>
+      </div>
+
+      <div id="codingTestWorkspace" class="coding-test-workspace" hidden>
+        <aside class="coding-problem-pane">
+          <div class="coding-question-nav">
+            <button id="codingPrevQuestion" class="action-button secondary" type="button">← Prev</button>
+            <span id="codingQuestionCounter">1 / 1</span>
+            <button id="codingNextQuestion" class="action-button secondary" type="button">Next →</button>
+          </div>
+          <h3 id="codingQuestionTitle">Question</h3>
+          <div class="coding-question-badges">
+            <span id="codingQuestionDifficulty">Easy</span>
+            <span id="codingQuestionMarks">0 Marks</span>
+          </div>
+          <div id="codingQuestionDescription" class="coding-question-description"></div>
+          <h4>Sample Input</h4>
+          <pre id="codingSampleInput"></pre>
+          <h4>Sample Output</h4>
+          <pre id="codingSampleOutput"></pre>
+        </aside>
+
+        <main class="coding-editor-pane">
+          <div class="coding-editor-toolbar">
+            <span>Java · Main.java</span>
+            <span id="codingViolationBadge">Violations: 0</span>
+          </div>
+          <textarea id="codingSourceEditor" class="coding-source-editor" spellcheck="false"></textarea>
+          <div class="coding-run-actions">
+            <button id="codingRunButton" class="action-button secondary" type="button">▶ Run Code</button>
+            <button id="codingRunTestsButton" class="action-button secondary" type="button">Run Sample Tests</button>
+            <button id="codingSubmitButton" class="action-button primary" type="button">Submit Test</button>
+          </div>
+          <section class="coding-console">
+            <div class="coding-console-tabs">
+              <strong>Compiler / Output</strong>
+              <span id="codingExecutionState">Ready</span>
+            </div>
+            <pre id="codingConsoleOutput">Press Run Code to compile and execute.</pre>
+            <div id="codingCaseResults" class="coding-case-results"></div>
+          </section>
+        </main>
+      </div>
+    </section>
+  </div>
+
+  <!-- ======================================================
+       ADMIN CODING TEST MANAGER — STABLE SEQUENTIAL FLOW
+       ====================================================== -->
+  <div id="codingAdminModal" class="profile-modal" hidden>
+    <div class="profile-modal-backdrop" data-coding-admin-close></div>
+
+    <section class="profile-modal-card coding-admin-card">
+      <header class="coding-admin-header">
+        <div>
+          <span class="coding-test-kicker">ADMIN</span>
+          <h2>Daily Coding Test Manager</h2>
+          <p>Create/select a test, add questions, then add test cases.</p>
+        </div>
+
+        <button
+          id="codingAdminCloseButton"
+          class="action-button secondary"
+          type="button"
+        >
+          Close
+        </button>
+      </header>
+
+      <div class="coding-admin-flow">
+        <span class="coding-flow-pill active">1 · Test</span>
+        <span>→</span>
+        <span class="coding-flow-pill">2 · Question</span>
+        <span>→</span>
+        <span class="coding-flow-pill">3 · Test Cases</span>
+      </div>
+
+      <!-- STEP 1 -->
+      <section class="coding-manager-section">
+        <div class="coding-manager-heading">
+          <div>
+            <span>STEP 1</span>
+            <h3>Create or Select a Test</h3>
+          </div>
+        </div>
+
+        <form id="codingTestAdminForm" class="coding-admin-form">
+          <div class="coding-admin-grid">
+            <label>
+              Test Title
+              <input
+                id="codingAdminTitle"
+                class="form-input"
+                required
+                placeholder="Daily Coding Test #1"
+              >
+            </label>
+
+            <label>
+              Duration (minutes)
+              <input
+                id="codingAdminDuration"
+                class="form-input"
+                type="number"
+                min="1"
+                value="30"
+                required
+              >
+            </label>
+
+            <label>
+              Start Date & Time
+              <input
+                id="codingAdminStartsAt"
+                class="form-input"
+                type="datetime-local"
+                required
+              >
+            </label>
+
+            <label>
+              End Date & Time
+              <input
+                id="codingAdminEndsAt"
+                class="form-input"
+                type="datetime-local"
+              >
+            </label>
+          </div>
+
+          <label>
+            Instructions
+            <textarea
+              id="codingAdminInstructions"
+              class="form-input coding-admin-textarea"
+            >Solve all questions. Hidden test cases are used for final scoring.</textarea>
+          </label>
+
+          <div class="coding-admin-actions">
+            <button
+              id="codingCreateTestButton"
+              class="action-button primary"
+              type="submit"
+            >
+              Create Test & Continue
+            </button>
+          </div>
+
+          <p id="codingAdminMessage" class="form-message"></p>
+        </form>
+
+        <div class="coding-existing-box">
+          <div class="coding-existing-heading">
+            <h4>Existing Tests</h4>
+            <span>Select one to continue editing.</span>
+          </div>
+
+          <div id="codingAdminTestsList" class="coding-admin-list"></div>
+        </div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section id="codingQuestionSection" class="coding-manager-section coding-section-locked">
+        <div class="coding-manager-heading">
+          <div>
+            <span>STEP 2</span>
+            <h3>Add Questions</h3>
+          </div>
+
+          <strong id="codingSelectedTestBadge">No test selected</strong>
+        </div>
+
+        <div id="codingQuestionLockMessage" class="coding-lock-message">
+          Create or select a test in Step 1.
+        </div>
+
+        <form id="codingQuestionAdminForm" class="coding-admin-form">
+          <input id="codingQuestionAdminTestId" type="hidden">
+
+          <div class="coding-admin-grid">
+            <label>
+              Question Title
+              <input
+                id="codingAdminQuestionTitle"
+                class="form-input"
+                required
+                placeholder="Add Two Numbers"
+              >
+            </label>
+
+            <label>
+              Difficulty
+              <select id="codingAdminDifficulty" class="form-input">
+                <option>Easy</option>
+                <option>Medium</option>
+                <option>Hard</option>
+              </select>
+            </label>
+
+            <label>
+              Marks
+              <input
+                id="codingAdminMarks"
+                class="form-input"
+                type="number"
+                min="1"
+                value="20"
+                required
+              >
+            </label>
+
+            <label>
+              Time Limit (ms)
+              <input
+                id="codingAdminTimeLimit"
+                class="form-input"
+                type="number"
+                min="500"
+                value="3000"
+                required
+              >
+            </label>
+          </div>
+
+          <label>
+            Problem Description
+            <textarea
+              id="codingAdminDescription"
+              class="form-input coding-admin-textarea"
+              required
+              placeholder="Write the complete problem statement..."
+            ></textarea>
+          </label>
+
+          <label>
+            Starter Java Code
+            <textarea
+              id="codingAdminStarterCode"
+              class="form-input coding-code-input"
+            >import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+    }
+}</textarea>
+          </label>
+
+          <div class="coding-admin-grid">
+            <label>
+              Sample Input
+              <textarea
+                id="codingAdminSampleInput"
+                class="form-input coding-admin-textarea"
+                placeholder="2 3"
+              ></textarea>
+            </label>
+
+            <label>
+              Sample Output
+              <textarea
+                id="codingAdminSampleOutput"
+                class="form-input coding-admin-textarea"
+                placeholder="5"
+              ></textarea>
+            </label>
+          </div>
+
+          <div class="coding-admin-actions">
+            <button
+              class="action-button primary"
+              type="submit"
+            >
+              Add Question & Continue
+            </button>
+          </div>
+
+          <p id="codingQuestionAdminMessage" class="form-message"></p>
+        </form>
+
+        <div class="coding-existing-box">
+          <div class="coding-existing-heading">
+            <h4>Questions in Selected Test</h4>
+            <span>Select a question to add/edit its test cases.</span>
+          </div>
+
+          <div id="codingAdminQuestionsList" class="coding-admin-list"></div>
+        </div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section id="codingCaseSection" class="coding-manager-section coding-section-locked">
+        <div class="coding-manager-heading">
+          <div>
+            <span>STEP 3</span>
+            <h3>Add Test Cases</h3>
+          </div>
+
+          <strong id="codingSelectedQuestionBadge">No question selected</strong>
+        </div>
+
+        <div id="codingCaseLockMessage" class="coding-lock-message">
+          Add or select a question in Step 2.
+        </div>
+
+        <form id="codingCaseAdminForm" class="coding-admin-form">
+          <input id="codingCaseAdminQuestionId" type="hidden">
+
+          <div class="coding-admin-grid">
+            <label>
+              Input
+              <textarea
+                id="codingAdminCaseInput"
+                class="form-input coding-admin-textarea"
+                placeholder="2 3"
+              ></textarea>
+            </label>
+
+            <label>
+              Expected Output
+              <textarea
+                id="codingAdminCaseOutput"
+                class="form-input coding-admin-textarea"
+                required
+                placeholder="5"
+              ></textarea>
+            </label>
+
+            <label>
+              Marks
+              <input
+                id="codingAdminCaseMarks"
+                class="form-input"
+                type="number"
+                min="0"
+                value="5"
+              >
+            </label>
+
+            <label class="coding-checkbox">
+              <input id="codingAdminCaseHidden" type="checkbox" checked>
+              Hidden Test Case
+            </label>
+          </div>
+
+          <div class="coding-admin-actions coding-case-actions">
+            <button
+              class="action-button primary"
+              type="submit"
+            >
+              Add Test Case
+            </button>
+
+            <button
+              id="codingNewQuestionButton"
+              class="action-button secondary"
+              type="button"
+            >
+              + Add Another Question
+            </button>
+          </div>
+
+          <p id="codingCaseAdminMessage" class="form-message"></p>
+        </form>
+
+        <div class="coding-existing-box">
+          <div class="coding-existing-heading">
+            <h4>Test Cases for Selected Question</h4>
+            <span>Delete incorrect cases and add them again.</span>
+          </div>
+
+          <div id="codingAdminCasesList" class="coding-admin-list"></div>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <!-- Scripts MUST stay at the end so Coding Test buttons/forms exist before JS binds events -->
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
+
 </body>
 </html>

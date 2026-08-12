@@ -2941,3 +2941,365 @@ body.modal-open {
 .register-number-cell {
     font-variant-numeric: tabular-nums;
 }
+
+
+/* ==========================================================
+   DAILY CODING TEST PLATFORM
+   ========================================================== */
+.coding-test-home-card{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:18px 0;padding:20px;border:1px solid rgba(96,165,250,.2);border-radius:18px;background:rgba(30,41,59,.58)}
+.coding-test-home-card p{margin:6px 0 0;color:var(--muted)}
+.coding-test-modal{position:fixed;inset:0;z-index:10000}
+.coding-test-backdrop{position:absolute;inset:0;background:rgba(2,6,23,.92);backdrop-filter:blur(8px)}
+.coding-test-shell{position:absolute;inset:14px;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(148,163,184,.18);border-radius:18px;background:#07111f;color:#e5edf8;box-shadow:0 30px 100px rgba(0,0,0,.55)}
+.coding-test-topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(148,163,184,.14);background:#0b1626}
+.coding-test-topbar h2{margin:3px 0 0}.coding-test-kicker{font-size:10px;letter-spacing:.18em;font-weight:900;color:#60a5fa}
+.coding-test-timer-wrap{text-align:right}.coding-test-timer-wrap span{display:block;font-size:9px;color:#94a3b8}.coding-test-timer-wrap strong{font-size:25px;font-variant-numeric:tabular-nums}
+.coding-test-lobby{display:grid;place-items:center;flex:1;padding:24px;overflow:auto}.coding-test-lobby-card{width:min(760px,100%);padding:26px;border:1px solid rgba(148,163,184,.15);border-radius:18px;background:#0b1626}
+.coding-instructions{margin:18px 0;padding:16px;border-radius:14px;background:rgba(15,23,42,.7)}.coding-instructions li{margin:8px 0;color:#cbd5e1}
+.coding-identity-label{display:grid;gap:7px}.coding-lobby-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.coding-test-workspace{display:grid;grid-template-columns:minmax(320px,38%) 1fr;flex:1;min-height:0}
+.coding-problem-pane,.coding-editor-pane{min-height:0;overflow:auto}.coding-problem-pane{padding:20px;border-right:1px solid rgba(148,163,184,.14);background:#0a1423}.coding-editor-pane{display:flex;flex-direction:column;background:#07111f}
+.coding-question-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}.coding-question-badges{display:flex;gap:8px;margin:8px 0 18px}.coding-question-badges span{padding:5px 9px;border-radius:999px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.18);font-size:10px;font-weight:800}
+.coding-question-description{line-height:1.65;color:#cbd5e1;white-space:pre-wrap}.coding-problem-pane pre{padding:12px;overflow:auto;border-radius:10px;background:#030712;border:1px solid rgba(148,163,184,.12)}
+.coding-editor-toolbar{display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(148,163,184,.12);font-size:11px;color:#94a3b8}
+.coding-source-editor{flex:1;min-height:360px;width:100%;resize:none;border:0;outline:0;padding:18px;background:#050b14;color:#dbeafe;font:14px/1.65 Consolas,"Courier New",monospace;tab-size:4}
+.coding-run-actions{display:flex;gap:9px;padding:10px 14px;border-top:1px solid rgba(148,163,184,.12);border-bottom:1px solid rgba(148,163,184,.12)}
+.coding-console{min-height:190px;max-height:38%;overflow:auto;background:#020617}.coding-console-tabs{display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid rgba(148,163,184,.12);font-size:11px}.coding-console pre{margin:0;padding:14px;white-space:pre-wrap;color:#cbd5e1}.coding-case-results{padding:0 14px 14px}.coding-case-pass{color:#86efac}.coding-case-fail{color:#fda4af}
+.coding-admin-card{width:min(1100px,94vw);max-height:92vh;overflow:auto}.coding-admin-form,.coding-admin-section{margin-top:18px;padding:18px;border:1px solid rgba(148,163,184,.14);border-radius:15px}.coding-admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.coding-admin-grid label,.coding-admin-form>label,.codingQuestionAdminForm label{display:grid;gap:6px}.coding-admin-textarea{min-height:100px;resize:vertical}.coding-code-input{min-height:230px;font-family:Consolas,monospace}.coding-admin-actions{display:flex;justify-content:flex-end;margin-top:12px}.coding-admin-list{display:grid;gap:10px}.coding-admin-item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;border-radius:12px;background:rgba(15,23,42,.62)}.coding-admin-item-actions{display:flex;flex-wrap:wrap;gap:7px}.coding-checkbox{display:flex!important;align-items:center;gap:8px!important}
+@media(max-width:850px){.coding-test-workspace{grid-template-columns:1fr}.coding-problem-pane{max-height:42vh;border-right:0;border-bottom:1px solid rgba(148,163,184,.14)}.coding-admin-grid{grid-template-columns:1fr}.coding-test-shell{inset:4px}.coding-test-home-card{align-items:flex-start;flex-direction:column}}
+
+
+/* ==========================================================
+   CODING TEST ADMIN — QUESTION / TEST CASE WIZARD FIX
+   ========================================================== */
+
+.coding-admin-stepper {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 18px 0;
+}
+
+.coding-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 13px;
+    background: rgba(15, 23, 42, 0.45);
+    color: #94a3b8;
+}
+
+.coding-step > span {
+    display: grid;
+    place-items: center;
+    width: 29px;
+    height: 29px;
+    border-radius: 50%;
+    background: rgba(148, 163, 184, 0.10);
+    font-weight: 900;
+}
+
+.coding-step.active {
+    border-color: rgba(96, 165, 250, 0.35);
+    color: #dbeafe;
+}
+
+.coding-step.active > span {
+    background: rgba(96, 165, 250, 0.18);
+    color: #93c5fd;
+}
+
+.coding-step.complete {
+    border-color: rgba(52, 211, 153, 0.30);
+}
+
+.coding-step.complete > span {
+    background: rgba(52, 211, 153, 0.16);
+    color: #86efac;
+}
+
+.coding-admin-section-title {
+    margin-bottom: 16px;
+}
+
+.coding-admin-section-title > span {
+    color: #60a5fa;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+}
+
+.coding-admin-section-title h3 {
+    margin: 5px 0 4px;
+}
+
+.coding-admin-section-title p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.coding-case-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 12px;
+}
+
+.coding-added-cases-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.coding-added-case {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid rgba(52, 211, 153, 0.14);
+    border-radius: 11px;
+    background: rgba(52, 211, 153, 0.04);
+}
+
+.coding-added-case small {
+    color: #94a3b8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .coding-admin-stepper {
+        grid-template-columns: 1fr;
+    }
+
+    .coding-added-case {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ==========================================================
+   CODING TEST ADMIN WIZARD V2
+   ========================================================== */
+
+.coding-step {
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.coding-admin-step-panel {
+    display: none;
+}
+
+.coding-admin-step-panel.coding-step-panel-active {
+    display: block;
+}
+
+.coding-context-notice {
+    margin-bottom: 14px;
+    padding: 11px 12px;
+    border: 1px solid rgba(251, 191, 36, 0.18);
+    border-radius: 11px;
+    background: rgba(251, 191, 36, 0.05);
+    color: #fcd34d;
+    font-size: 11px;
+}
+
+.coding-context-notice.ready {
+    border-color: rgba(52, 211, 153, 0.22);
+    background: rgba(52, 211, 153, 0.05);
+    color: #86efac;
+}
+
+.coding-form-disabled {
+    opacity: 0.48;
+    pointer-events: none;
+}
+
+.coding-admin-sublist {
+    margin-top: 18px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.coding-admin-sublist h4 {
+    margin: 0 0 10px;
+}
+
+.coding-admin-item.selected {
+    border: 1px solid rgba(96, 165, 250, 0.32);
+    background: rgba(96, 165, 250, 0.07);
+}
+
+
+/* ==========================================================
+   DAILY CODING TEST — STABLE ADMIN MANAGER
+   ========================================================== */
+
+.coding-admin-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 16px;
+}
+
+.coding-admin-header h2 {
+    margin: 5px 0 4px;
+}
+
+.coding-admin-header p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.coding-admin-flow {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 12px 0 18px;
+    color: var(--muted);
+}
+
+.coding-flow-pill {
+    padding: 7px 10px;
+    border: 1px solid rgba(148, 163, 184, .16);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, .5);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.coding-manager-section {
+    margin: 16px 0;
+    padding: 20px;
+    border: 1px solid rgba(148, 163, 184, .14);
+    border-radius: 18px;
+    background: rgba(15, 23, 42, .34);
+}
+
+.coding-manager-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.coding-manager-heading > div > span {
+    color: #60a5fa;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .15em;
+}
+
+.coding-manager-heading h3 {
+    margin: 5px 0 0;
+}
+
+.coding-manager-heading > strong {
+    max-width: 50%;
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: rgba(96, 165, 250, .08);
+    color: #93c5fd;
+    font-size: 10px;
+}
+
+.coding-section-locked {
+    opacity: .58;
+}
+
+.coding-lock-message {
+    margin-bottom: 13px;
+    padding: 11px 12px;
+    border: 1px solid rgba(251, 191, 36, .18);
+    border-radius: 12px;
+    background: rgba(251, 191, 36, .05);
+    color: #fcd34d;
+    font-size: 11px;
+}
+
+.coding-existing-box {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(148, 163, 184, .12);
+}
+
+.coding-existing-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.coding-existing-heading h4 {
+    margin: 0;
+}
+
+.coding-existing-heading span {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.coding-admin-item {
+    border: 1px solid rgba(148, 163, 184, .12);
+}
+
+.coding-admin-item.selected {
+    border-color: rgba(96, 165, 250, .4);
+    background: rgba(96, 165, 250, .08);
+}
+
+.coding-admin-item small {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+.action-button.danger {
+    border-color: rgba(244, 63, 94, .24);
+    background: rgba(244, 63, 94, .07);
+    color: #fda4af;
+}
+
+.action-button.danger:hover {
+    background: rgba(244, 63, 94, .14);
+}
+
+.coding-empty-state,
+.coding-admin-error {
+    padding: 12px;
+    border-radius: 11px;
+    color: var(--muted);
+    background: rgba(15, 23, 42, .46);
+}
+
+.coding-admin-error {
+    color: #fda4af;
+}
+
+@media (max-width: 760px) {
+    .coding-admin-header,
+    .coding-manager-heading,
+    .coding-existing-heading {
+        flex-direction: column;
+    }
+
+    .coding-manager-heading > strong {
+        max-width: 100%;
+    }
+
+    .coding-admin-flow {
+        flex-wrap: wrap;
+    }
+}

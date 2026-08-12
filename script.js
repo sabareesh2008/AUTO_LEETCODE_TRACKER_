@@ -3465,3 +3465,2163 @@ setInterval(() => {
     loadData().catch(console.error);
   }
 }, 30000);
+
+
+
+// ============================================================
+// DAILY CODING TEST PLATFORM — STABLE FINAL
+// ============================================================
+
+const codingState = {
+  test: null,
+  questions: [],
+  attempt: null,
+  currentIndex: 0,
+  codeByQuestion: {},
+  timerId: null,
+  violations: 0,
+  submitted: false,
+  guardInstalled: false
+};
+
+const codingAdminState = {
+  test: null,
+  question: null
+};
+
+function codingEl(id) {
+  return document.getElementById(id);
+}
+
+function codingNowIso() {
+  return new Date().toISOString();
+}
+
+function runnerBaseUrl() {
+  return String(
+    window.APP_CONFIG?.CODE_RUNNER_URL || ""
+  ).replace(/\/+$/, "");
+}
+
+function codingMessage(elementId, text, type = "") {
+  const element = codingEl(elementId);
+
+  if (!element) {
+    return;
+  }
+
+  element.textContent = text;
+  element.className =
+    `form-message ${type}`.trim();
+}
+
+function codingScrollTo(elementId) {
+  codingEl(elementId)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+async function verifyCodingStudent(registerNumber) {
+  // Uses a security-definer RPC created by coding_test_repair.sql.
+  // This avoids exposing the full students table to anonymous users.
+  const { data, error } = await supabaseClient.rpc(
+    "verify_coding_student",
+    {
+      p_register_number: String(registerNumber).trim()
+    }
+  );
+
+  if (error) {
+    throw new Error(
+      `Student verification failed: ${error.message}`
+    );
+  }
+
+  const row = Array.isArray(data)
+    ? data[0]
+    : data;
+
+  if (!row) {
+    throw new Error(
+      "Register number not found in the students table."
+    );
+  }
+
+  return row;
+}
+
+async function loadActiveCodingTest() {
+  const now = codingNowIso();
+
+  const { data, error } = await supabaseClient
+    .from("coding_tests")
+    .select("*")
+    .eq("status", "published")
+    .lte("starts_at", now)
+    .or(`ends_at.is.null,ends_at.gte.${now}`)
+    .order("starts_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function loadCodingQuestions(testId) {
+  const { data, error } = await supabaseClient
+    .from("coding_questions")
+    .select("*")
+    .eq("test_id", testId)
+    .order("question_number", {
+      ascending: true
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
+}
+
+async function openCodingTest() {
+  const modal = codingEl("codingTestModal");
+
+  if (!modal) {
+    return;
+  }
+
+  modal.hidden = false;
+  codingEl("codingTestWorkspace").hidden = true;
+  codingEl("codingTestLobby").hidden = false;
+  codingMessage("codingLobbyMessage", "");
+
+  try {
+    codingState.test =
+      await loadActiveCodingTest();
+
+    if (!codingState.test) {
+      codingEl("codingLobbyTitle").textContent =
+        "No active coding test";
+
+      codingEl("codingLobbyMeta").textContent =
+        "There is no published test in the current time window.";
+
+      codingEl("startCodingTestButton").disabled =
+        true;
+
+      return;
+    }
+
+    codingEl("startCodingTestButton").disabled =
+      false;
+
+    codingEl("codingLobbyTitle").textContent =
+      codingState.test.title;
+
+    codingEl("codingLobbyMeta").textContent =
+      `${codingState.test.duration_minutes} minutes · `
+      + `${codingState.test.total_marks || 0} marks`;
+
+    codingEl("codingTestTitle").textContent =
+      codingState.test.title;
+  } catch (error) {
+    codingMessage(
+      "codingLobbyMessage",
+      error.message,
+      "error"
+    );
+  }
+}
+
+function closeCodingTest() {
+  if (
+    codingState.attempt
+    && !codingState.submitted
+    && !codingEl("codingTestWorkspace").hidden
+  ) {
+    codingMessage(
+      "codingLobbyMessage",
+      "Test is in progress. Submit the test before closing.",
+      "error"
+    );
+    return;
+  }
+
+  codingEl("codingTestModal").hidden = true;
+}
+
+async function startCodingTest() {
+  const registerNumber =
+    codingEl("codingRegisterNumber").value.trim();
+
+  if (!registerNumber) {
+    codingMessage(
+      "codingLobbyMessage",
+      "Enter your register number.",
+      "error"
+    );
+    return;
+  }
+
+  codingMessage(
+    "codingLobbyMessage",
+    "Verifying student..."
+  );
+
+  try {
+    await verifyCodingStudent(registerNumber);
+
+    const { data: existing, error: existingError } =
+      await supabaseClient
+        .from("coding_attempts")
+        .select("*")
+        .eq("test_id", codingState.test.id)
+        .eq("register_number", registerNumber)
+        .maybeSingle();
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    if (
+      existing?.status === "submitted"
+      || existing?.status === "expired"
+    ) {
+      throw new Error(
+        "This test has already been submitted."
+      );
+    }
+
+    if (existing) {
+      codingState.attempt = existing;
+    } else {
+      const startedAt = new Date();
+
+      const expiresAt = new Date(
+        startedAt.getTime()
+        + Number(
+          codingState.test.duration_minutes
+        ) * 60_000
+      );
+
+      const { data, error } =
+        await supabaseClient
+          .from("coding_attempts")
+          .insert({
+            test_id:
+              codingState.test.id,
+            register_number:
+              registerNumber,
+            started_at:
+              startedAt.toISOString(),
+            expires_at:
+              expiresAt.toISOString(),
+            status:
+              "in_progress"
+          })
+          .select()
+          .single();
+
+      if (error) {
+        throw error;
+      }
+
+      codingState.attempt = data;
+    }
+
+    codingState.questions =
+      await loadCodingQuestions(
+        codingState.test.id
+      );
+
+    if (!codingState.questions.length) {
+      throw new Error(
+        "This test has no questions. Contact faculty."
+      );
+    }
+
+    const {
+      data: drafts,
+      error: draftError
+    } = await supabaseClient
+      .from("coding_submissions")
+      .select("*")
+      .eq(
+        "attempt_id",
+        codingState.attempt.id
+      );
+
+    if (draftError) {
+      throw draftError;
+    }
+
+    codingState.codeByQuestion = {};
+
+    (drafts || []).forEach(
+      (submission) => {
+        codingState.codeByQuestion[
+          submission.question_id
+        ] = submission.source_code || "";
+      }
+    );
+
+    codingState.currentIndex = 0;
+    codingState.submitted = false;
+    codingState.violations =
+      Number(
+        codingState.attempt.violation_count || 0
+      );
+
+    codingEl(
+      "codingViolationBadge"
+    ).textContent =
+      `Violations: ${codingState.violations}`;
+
+    codingEl("codingTestLobby").hidden = true;
+    codingEl("codingTestWorkspace").hidden =
+      false;
+
+    await enterCodingFullscreen();
+
+    renderCodingQuestion();
+    startCodingTimer();
+    installCodingGuard();
+  } catch (error) {
+    codingMessage(
+      "codingLobbyMessage",
+      error.message,
+      "error"
+    );
+  }
+}
+
+function renderCodingQuestion() {
+  const question =
+    codingState.questions[
+      codingState.currentIndex
+    ];
+
+  if (!question) {
+    return;
+  }
+
+  codingEl(
+    "codingQuestionCounter"
+  ).textContent =
+    `${codingState.currentIndex + 1} / `
+    + `${codingState.questions.length}`;
+
+  codingEl(
+    "codingQuestionTitle"
+  ).textContent =
+    question.title;
+
+  codingEl(
+    "codingQuestionDifficulty"
+  ).textContent =
+    question.difficulty;
+
+  codingEl(
+    "codingQuestionMarks"
+  ).textContent =
+    `${question.marks} Marks`;
+
+  codingEl(
+    "codingQuestionDescription"
+  ).textContent =
+    question.description;
+
+  codingEl(
+    "codingSampleInput"
+  ).textContent =
+    question.sample_input || "(none)";
+
+  codingEl(
+    "codingSampleOutput"
+  ).textContent =
+    question.sample_output || "(none)";
+
+  codingEl(
+    "codingSourceEditor"
+  ).value =
+    codingState.codeByQuestion[
+      question.id
+    ]
+    ?? question.starter_code
+    ?? "";
+
+  codingEl(
+    "codingCaseResults"
+  ).innerHTML = "";
+
+  codingEl(
+    "codingExecutionState"
+  ).textContent = "Ready";
+
+  codingEl(
+    "codingConsoleOutput"
+  ).textContent =
+    "Press Run Code to compile and execute.";
+}
+
+async function saveCodingDraft() {
+  const question =
+    codingState.questions[
+      codingState.currentIndex
+    ];
+
+  if (
+    !question
+    || !codingState.attempt
+  ) {
+    return;
+  }
+
+  const sourceCode =
+    codingEl("codingSourceEditor").value;
+
+  codingState.codeByQuestion[
+    question.id
+  ] = sourceCode;
+
+  const { error } = await supabaseClient
+    .from("coding_submissions")
+    .upsert(
+      {
+        attempt_id:
+          codingState.attempt.id,
+        question_id:
+          question.id,
+        source_code:
+          sourceCode,
+        language:
+          "java",
+        status:
+          "draft",
+        updated_at:
+          codingNowIso()
+      },
+      {
+        onConflict:
+          "attempt_id,question_id"
+      }
+    );
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function callRunner(
+  endpoint,
+  payload
+) {
+  const baseUrl =
+    runnerBaseUrl();
+
+  if (!baseUrl) {
+    throw new Error(
+      "Java runner URL is not configured in config.js."
+    );
+  }
+
+  let response;
+
+  try {
+    response = await fetch(
+      `${baseUrl}${endpoint}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+        body:
+          JSON.stringify(payload)
+      }
+    );
+  } catch (error) {
+    throw new Error(
+      "Cannot reach Java runner. "
+      + "Make sure Docker is running and "
+      + `${baseUrl}/health works.`
+    );
+  }
+
+  let result;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      `Runner returned HTTP ${response.status}.`
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      result.detail
+      || result.message
+      || `Runner error ${response.status}`
+    );
+  }
+
+  return result;
+}
+
+async function codingRun(mode = "run") {
+  const question =
+    codingState.questions[
+      codingState.currentIndex
+    ];
+
+  if (!question) {
+    return;
+  }
+
+  try {
+    await saveCodingDraft();
+
+    codingEl(
+      "codingExecutionState"
+    ).textContent =
+      "Compiling...";
+
+    codingEl(
+      "codingConsoleOutput"
+    ).textContent =
+      "Compiling with Java 21...";
+
+    codingEl(
+      "codingCaseResults"
+    ).innerHTML = "";
+
+    const sourceCode =
+      codingEl(
+        "codingSourceEditor"
+      ).value;
+
+    let result;
+
+    if (mode === "samples") {
+      result = await callRunner(
+        "/judge",
+        {
+          source_code:
+            sourceCode,
+          test_cases: [
+            {
+              input:
+                question.sample_input || "",
+              expected_output:
+                question.sample_output || "",
+              hidden:
+                false,
+              marks:
+                0
+            }
+          ]
+        }
+      );
+    } else {
+      result = await callRunner(
+        "/run",
+        {
+          source_code:
+            sourceCode,
+          stdin:
+            question.sample_input || ""
+        }
+      );
+    }
+
+    codingEl(
+      "codingExecutionState"
+    ).textContent =
+      result.status || "Done";
+
+    const compilerText =
+      result.compile_error
+      || result.stderr
+      || result.stdout
+      || "(no output)";
+
+    codingEl(
+      "codingConsoleOutput"
+    ).textContent =
+      compilerText;
+
+    if (
+      Array.isArray(result.results)
+    ) {
+      codingEl(
+        "codingCaseResults"
+      ).innerHTML =
+        result.results.map(
+          (item, index) => `
+            <div class="${
+              item.passed
+                ? "coding-case-pass"
+                : "coding-case-fail"
+            }">
+              ${
+                item.passed
+                  ? "✅"
+                  : "❌"
+              }
+              Case ${index + 1}:
+              ${
+                item.passed
+                  ? "Passed"
+                  : `Failed · Expected: ${
+                      escapeHTML(
+                        item.expected
+                      )
+                    } · Output: ${
+                      escapeHTML(
+                        item.output
+                      )
+                    }`
+              }
+            </div>
+          `
+        ).join("");
+    }
+  } catch (error) {
+    codingEl(
+      "codingExecutionState"
+    ).textContent =
+      "Error";
+
+    codingEl(
+      "codingConsoleOutput"
+    ).textContent =
+      error.message;
+  }
+}
+
+async function submitCodingTest(
+  autoSubmit = false
+) {
+  if (
+    codingState.submitted
+    || !codingState.attempt
+  ) {
+    return;
+  }
+
+  codingState.submitted = true;
+
+  try {
+    await saveCodingDraft();
+
+    let totalScore = 0;
+
+    for (
+      const question
+      of codingState.questions
+    ) {
+      const sourceCode =
+        codingState.codeByQuestion[
+          question.id
+        ]
+        ?? question.starter_code
+        ?? "";
+
+      // Hidden cases are fetched by the trusted runner,
+      // not by the student's browser.
+      const result = await callRunner(
+        "/judge-question",
+        {
+          question_id:
+            question.id,
+          source_code:
+            sourceCode
+        }
+      );
+
+      const score =
+        Number(result.score || 0);
+
+      const passed =
+        Number(result.passed || 0);
+
+      const totalCases =
+        Number(result.total || 0);
+
+      totalScore += score;
+
+      const { error } =
+        await supabaseClient
+          .from("coding_submissions")
+          .upsert(
+            {
+              attempt_id:
+                codingState.attempt.id,
+              question_id:
+                question.id,
+              source_code:
+                sourceCode,
+              language:
+                "java",
+              passed_cases:
+                passed,
+              total_cases:
+                totalCases,
+              score:
+                score,
+              status:
+                "submitted",
+              submitted_at:
+                codingNowIso(),
+              updated_at:
+                codingNowIso()
+            },
+            {
+              onConflict:
+                "attempt_id,question_id"
+            }
+          );
+
+      if (error) {
+        throw error;
+      }
+    }
+
+    const { error: attemptError } =
+      await supabaseClient
+        .from("coding_attempts")
+        .update({
+          status:
+            autoSubmit
+              ? "expired"
+              : "submitted",
+          submitted_at:
+            codingNowIso(),
+          total_score:
+            totalScore,
+          violation_count:
+            codingState.violations
+        })
+        .eq(
+          "id",
+          codingState.attempt.id
+        );
+
+    if (attemptError) {
+      throw attemptError;
+    }
+
+    clearInterval(
+      codingState.timerId
+    );
+
+    codingEl(
+      "codingConsoleOutput"
+    ).textContent =
+      `${
+        autoSubmit
+          ? "Time expired. Test auto-submitted."
+          : "Test submitted successfully."
+      }\nFinal Score: ${totalScore}`;
+
+    [
+      "codingSubmitButton",
+      "codingRunButton",
+      "codingRunTestsButton",
+      "codingSourceEditor"
+    ].forEach(
+      (id) => {
+        codingEl(id).disabled = true;
+      }
+    );
+
+    if (
+      document.fullscreenElement
+    ) {
+      document
+        .exitFullscreen()
+        .catch(() => {});
+    }
+  } catch (error) {
+    codingState.submitted = false;
+
+    codingEl(
+      "codingConsoleOutput"
+    ).textContent =
+      `Submission error: ${error.message}`;
+  }
+}
+
+function startCodingTimer() {
+  clearInterval(
+    codingState.timerId
+  );
+
+  const updateTimer = () => {
+    const remaining =
+      new Date(
+        codingState.attempt.expires_at
+      ).getTime()
+      - Date.now();
+
+    if (remaining <= 0) {
+      codingEl(
+        "codingTestTimer"
+      ).textContent =
+        "00:00:00";
+
+      clearInterval(
+        codingState.timerId
+      );
+
+      submitCodingTest(true);
+      return;
+    }
+
+    const seconds =
+      Math.floor(
+        remaining / 1000
+      );
+
+    const hours =
+      Math.floor(
+        seconds / 3600
+      );
+
+    const minutes =
+      Math.floor(
+        (seconds % 3600) / 60
+      );
+
+    const remainingSeconds =
+      seconds % 60;
+
+    codingEl(
+      "codingTestTimer"
+    ).textContent =
+      [
+        hours,
+        minutes,
+        remainingSeconds
+      ]
+        .map(
+          (value) =>
+            String(value)
+              .padStart(2, "0")
+        )
+        .join(":");
+  };
+
+  updateTimer();
+
+  codingState.timerId =
+    setInterval(
+      updateTimer,
+      1000
+    );
+}
+
+async function logCodingViolation(
+  violationType
+) {
+  if (
+    !codingState.attempt
+    || codingState.submitted
+  ) {
+    return;
+  }
+
+  codingState.violations += 1;
+
+  codingEl(
+    "codingViolationBadge"
+  ).textContent =
+    `Violations: ${codingState.violations}`;
+
+  await supabaseClient
+    .from("coding_violations")
+    .insert({
+      attempt_id:
+        codingState.attempt.id,
+      violation_type:
+        violationType
+    });
+
+  await supabaseClient
+    .from("coding_attempts")
+    .update({
+      violation_count:
+        codingState.violations
+    })
+    .eq(
+      "id",
+      codingState.attempt.id
+    );
+}
+
+function installCodingGuard() {
+  if (
+    codingState.guardInstalled
+  ) {
+    return;
+  }
+
+  codingState.guardInstalled =
+    true;
+
+  const editor =
+    codingEl("codingSourceEditor");
+
+  [
+    "copy",
+    "paste",
+    "cut",
+    "contextmenu",
+    "drop"
+  ].forEach(
+    (eventType) => {
+      editor.addEventListener(
+        eventType,
+        (event) => {
+          event.preventDefault();
+
+          logCodingViolation(
+            eventType
+          );
+        }
+      );
+    }
+  );
+}
+
+async function enterCodingFullscreen() {
+  try {
+    if (
+      !document.fullscreenElement
+    ) {
+      await document
+        .documentElement
+        .requestFullscreen();
+    }
+  } catch {
+    // Browser may reject fullscreen.
+  }
+}
+
+document.addEventListener(
+  "visibilitychange",
+  () => {
+    if (
+      codingState.attempt
+      && !codingState.submitted
+      && document.hidden
+    ) {
+      logCodingViolation(
+        "tab_switch"
+      );
+    }
+  }
+);
+
+document.addEventListener(
+  "fullscreenchange",
+  () => {
+    if (
+      codingState.attempt
+      && !codingState.submitted
+      && !document.fullscreenElement
+    ) {
+      logCodingViolation(
+        "fullscreen_exit"
+      );
+    }
+  }
+);
+
+// ============================================================
+// ADMIN — SIMPLE SEQUENTIAL TEST MANAGER
+// ============================================================
+
+function resetCodingAdminQuestionForm() {
+  codingEl(
+    "codingAdminQuestionTitle"
+  ).value = "";
+
+  codingEl(
+    "codingAdminDescription"
+  ).value = "";
+
+  codingEl(
+    "codingAdminDifficulty"
+  ).value = "Easy";
+
+  codingEl(
+    "codingAdminMarks"
+  ).value = "20";
+
+  codingEl(
+    "codingAdminTimeLimit"
+  ).value = "3000";
+
+  codingEl(
+    "codingAdminSampleInput"
+  ).value = "";
+
+  codingEl(
+    "codingAdminSampleOutput"
+  ).value = "";
+
+  codingMessage(
+    "codingQuestionAdminMessage",
+    ""
+  );
+}
+
+function resetCodingAdminCaseForm() {
+  codingEl(
+    "codingAdminCaseInput"
+  ).value = "";
+
+  codingEl(
+    "codingAdminCaseOutput"
+  ).value = "";
+
+  codingEl(
+    "codingAdminCaseMarks"
+  ).value = "5";
+
+  codingEl(
+    "codingAdminCaseHidden"
+  ).checked = true;
+
+  codingMessage(
+    "codingCaseAdminMessage",
+    ""
+  );
+}
+
+function refreshCodingAdminLocks() {
+  const questionSection =
+    codingEl("codingQuestionSection");
+
+  const caseSection =
+    codingEl("codingCaseSection");
+
+  const selectedTest =
+    codingAdminState.test;
+
+  const selectedQuestion =
+    codingAdminState.question;
+
+  questionSection.classList.toggle(
+    "coding-section-locked",
+    !selectedTest
+  );
+
+  codingEl(
+    "codingQuestionAdminForm"
+  ).inert =
+    !selectedTest;
+
+  codingEl(
+    "codingSelectedTestBadge"
+  ).textContent =
+    selectedTest
+      ? `Selected: ${selectedTest.title}`
+      : "No test selected";
+
+  codingEl(
+    "codingQuestionLockMessage"
+  ).hidden =
+    Boolean(selectedTest);
+
+  caseSection.classList.toggle(
+    "coding-section-locked",
+    !selectedQuestion
+  );
+
+  codingEl(
+    "codingCaseAdminForm"
+  ).inert =
+    !selectedQuestion;
+
+  codingEl(
+    "codingSelectedQuestionBadge"
+  ).textContent =
+    selectedQuestion
+      ? `Selected: ${selectedQuestion.title}`
+      : "No question selected";
+
+  codingEl(
+    "codingCaseLockMessage"
+  ).hidden =
+    Boolean(selectedQuestion);
+}
+
+async function loadCodingAdminTests() {
+  const list =
+    codingEl(
+      "codingAdminTestsList"
+    );
+
+  const { data, error } =
+    await supabaseClient
+      .from("coding_tests")
+      .select("*")
+      .order(
+        "created_at",
+        { ascending: false }
+      );
+
+  if (error) {
+    list.innerHTML =
+      `<div class="coding-admin-error">${
+        escapeHTML(error.message)
+      }</div>`;
+    return;
+  }
+
+  list.innerHTML =
+    (data || []).map(
+      (test) => `
+        <article class="coding-admin-item ${
+          codingAdminState.test?.id
+          === test.id
+            ? "selected"
+            : ""
+        }">
+          <div>
+            <strong>${
+              escapeHTML(test.title)
+            }</strong>
+
+            <small>
+              ${
+                escapeHTML(test.status)
+              }
+              · ${test.duration_minutes} min
+              · ${test.total_marks || 0} marks
+            </small>
+          </div>
+
+          <div class="coding-admin-item-actions">
+            <button
+              class="action-button secondary"
+              type="button"
+              data-coding-select-test="${test.id}"
+              data-coding-test-title="${
+                escapeHTML(test.title)
+              }"
+            >
+              Select
+            </button>
+
+            <button
+              class="action-button secondary"
+              type="button"
+              data-coding-toggle-test="${test.id}"
+              data-coding-test-status="${
+                escapeHTML(test.status)
+              }"
+            >
+              ${
+                test.status === "published"
+                  ? "Close Test"
+                  : "Publish"
+              }
+            </button>
+
+            <button
+              class="action-button danger"
+              type="button"
+              data-coding-delete-test="${test.id}"
+              data-coding-test-title="${
+                escapeHTML(test.title)
+              }"
+            >
+              Delete
+            </button>
+          </div>
+        </article>
+      `
+    ).join("")
+    || `<div class="coding-empty-state">
+          No coding tests yet.
+        </div>`;
+}
+
+async function loadCodingAdminQuestions() {
+  const list =
+    codingEl(
+      "codingAdminQuestionsList"
+    );
+
+  if (
+    !codingAdminState.test
+  ) {
+    list.innerHTML =
+      `<div class="coding-empty-state">
+        Select a test first.
+      </div>`;
+    return;
+  }
+
+  const { data, error } =
+    await supabaseClient
+      .from("coding_questions")
+      .select("*")
+      .eq(
+        "test_id",
+        codingAdminState.test.id
+      )
+      .order(
+        "question_number",
+        { ascending: true }
+      );
+
+  if (error) {
+    list.innerHTML =
+      `<div class="coding-admin-error">${
+        escapeHTML(error.message)
+      }</div>`;
+    return;
+  }
+
+  list.innerHTML =
+    (data || []).map(
+      (question) => `
+        <article class="coding-admin-item ${
+          codingAdminState.question?.id
+          === question.id
+            ? "selected"
+            : ""
+        }">
+          <div>
+            <strong>
+              Q${question.question_number}.
+              ${escapeHTML(question.title)}
+            </strong>
+
+            <small>
+              ${escapeHTML(
+                question.difficulty
+              )}
+              · ${question.marks} marks
+            </small>
+          </div>
+
+          <div class="coding-admin-item-actions">
+            <button
+              class="action-button secondary"
+              type="button"
+              data-coding-select-question="${
+                question.id
+              }"
+              data-coding-question-title="${
+                escapeHTML(
+                  question.title
+                )
+              }"
+            >
+              Select
+            </button>
+
+            <button
+              class="action-button danger"
+              type="button"
+              data-coding-delete-question="${
+                question.id
+              }"
+            >
+              Delete
+            </button>
+          </div>
+        </article>
+      `
+    ).join("")
+    || `<div class="coding-empty-state">
+          No questions yet.
+        </div>`;
+}
+
+async function loadCodingAdminCases() {
+  const list =
+    codingEl(
+      "codingAdminCasesList"
+    );
+
+  if (
+    !codingAdminState.question
+  ) {
+    list.innerHTML =
+      `<div class="coding-empty-state">
+        Select a question first.
+      </div>`;
+    return;
+  }
+
+  const { data, error } =
+    await supabaseClient
+      .from("coding_test_cases")
+      .select("*")
+      .eq(
+        "question_id",
+        codingAdminState.question.id
+      )
+      .order(
+        "id",
+        { ascending: true }
+      );
+
+  if (error) {
+    list.innerHTML =
+      `<div class="coding-admin-error">${
+        escapeHTML(error.message)
+      }</div>`;
+    return;
+  }
+
+  list.innerHTML =
+    (data || []).map(
+      (testCase, index) => `
+        <article class="coding-admin-item">
+          <div>
+            <strong>
+              ${
+                testCase.is_hidden
+                  ? "🔒 Hidden"
+                  : "👁 Public"
+              }
+              Case ${index + 1}
+            </strong>
+
+            <small>
+              ${Number(
+                testCase.marks || 0
+              )} marks ·
+              Expected:
+              ${escapeHTML(
+                testCase.expected_output
+                || ""
+              )}
+            </small>
+          </div>
+
+          <button
+            class="action-button danger"
+            type="button"
+            data-coding-delete-case="${
+              testCase.id
+            }"
+          >
+            Delete
+          </button>
+        </article>
+      `
+    ).join("")
+    || `<div class="coding-empty-state">
+          No test cases yet.
+        </div>`;
+}
+
+async function openCodingAdmin() {
+  codingEl(
+    "codingAdminModal"
+  ).hidden = false;
+
+  codingAdminState.test = null;
+  codingAdminState.question = null;
+
+  refreshCodingAdminLocks();
+
+  await Promise.all([
+    loadCodingAdminTests(),
+    loadCodingAdminQuestions(),
+    loadCodingAdminCases()
+  ]);
+}
+
+function closeCodingAdmin() {
+  codingEl(
+    "codingAdminModal"
+  ).hidden = true;
+}
+
+async function createCodingTest(
+  event
+) {
+  event.preventDefault();
+
+  const startValue =
+    codingEl(
+      "codingAdminStartsAt"
+    ).value;
+
+  const endValue =
+    codingEl(
+      "codingAdminEndsAt"
+    ).value;
+
+  if (!startValue) {
+    codingMessage(
+      "codingAdminMessage",
+      "Select a start date and time.",
+      "error"
+    );
+    return;
+  }
+
+  const payload = {
+    title:
+      codingEl(
+        "codingAdminTitle"
+      ).value.trim(),
+    duration_minutes:
+      Number(
+        codingEl(
+          "codingAdminDuration"
+        ).value
+      ),
+    starts_at:
+      new Date(
+        startValue
+      ).toISOString(),
+    ends_at:
+      endValue
+        ? new Date(
+            endValue
+          ).toISOString()
+        : null,
+    instructions:
+      codingEl(
+        "codingAdminInstructions"
+      ).value.trim(),
+    status:
+      "draft"
+  };
+
+  codingMessage(
+    "codingAdminMessage",
+    "Creating test..."
+  );
+
+  const { data, error } =
+    await supabaseClient
+      .from("coding_tests")
+      .insert(payload)
+      .select()
+      .single();
+
+  if (error) {
+    codingMessage(
+      "codingAdminMessage",
+      error.message,
+      "error"
+    );
+    return;
+  }
+
+  codingAdminState.test = data;
+  codingAdminState.question = null;
+
+  codingMessage(
+    "codingAdminMessage",
+    "✅ Test created. Continue to Step 2.",
+    "success"
+  );
+
+  refreshCodingAdminLocks();
+
+  await Promise.all([
+    loadCodingAdminTests(),
+    loadCodingAdminQuestions(),
+    loadCodingAdminCases()
+  ]);
+
+  codingScrollTo(
+    "codingQuestionSection"
+  );
+}
+
+async function addCodingQuestion(
+  event
+) {
+  event.preventDefault();
+
+  if (
+    !codingAdminState.test
+  ) {
+    codingMessage(
+      "codingQuestionAdminMessage",
+      "Select a test first.",
+      "error"
+    );
+    return;
+  }
+
+  codingMessage(
+    "codingQuestionAdminMessage",
+    "Adding question..."
+  );
+
+  // Always calculate the next question number.
+  // This eliminates duplicate-number 409 errors.
+  const {
+    data: lastQuestion,
+    error: numberError
+  } = await supabaseClient
+    .from("coding_questions")
+    .select("question_number")
+    .eq(
+      "test_id",
+      codingAdminState.test.id
+    )
+    .order(
+      "question_number",
+      { ascending: false }
+    )
+    .limit(1);
+
+  if (numberError) {
+    codingMessage(
+      "codingQuestionAdminMessage",
+      numberError.message,
+      "error"
+    );
+    return;
+  }
+
+  const nextQuestionNumber =
+    lastQuestion?.length
+      ? Number(
+          lastQuestion[0]
+            .question_number
+        ) + 1
+      : 1;
+
+  const payload = {
+    test_id:
+      codingAdminState.test.id,
+    question_number:
+      nextQuestionNumber,
+    title:
+      codingEl(
+        "codingAdminQuestionTitle"
+      ).value.trim(),
+    description:
+      codingEl(
+        "codingAdminDescription"
+      ).value.trim(),
+    difficulty:
+      codingEl(
+        "codingAdminDifficulty"
+      ).value,
+    marks:
+      Number(
+        codingEl(
+          "codingAdminMarks"
+        ).value
+      ),
+    starter_code:
+      codingEl(
+        "codingAdminStarterCode"
+      ).value,
+    sample_input:
+      codingEl(
+        "codingAdminSampleInput"
+      ).value,
+    sample_output:
+      codingEl(
+        "codingAdminSampleOutput"
+      ).value,
+    time_limit_ms:
+      Number(
+        codingEl(
+          "codingAdminTimeLimit"
+        ).value
+      )
+  };
+
+  const { data, error } =
+    await supabaseClient
+      .from("coding_questions")
+      .insert(payload)
+      .select()
+      .single();
+
+  if (error) {
+    codingMessage(
+      "codingQuestionAdminMessage",
+      error.message,
+      "error"
+    );
+    return;
+  }
+
+  codingAdminState.question =
+    data;
+
+  codingMessage(
+    "codingQuestionAdminMessage",
+    `✅ Question ${nextQuestionNumber} added. Continue to Step 3.`,
+    "success"
+  );
+
+  refreshCodingAdminLocks();
+
+  await Promise.all([
+    loadCodingAdminTests(),
+    loadCodingAdminQuestions(),
+    loadCodingAdminCases()
+  ]);
+
+  codingScrollTo(
+    "codingCaseSection"
+  );
+}
+
+async function addCodingCase(
+  event
+) {
+  event.preventDefault();
+
+  if (
+    !codingAdminState.question
+  ) {
+    codingMessage(
+      "codingCaseAdminMessage",
+      "Select a question first.",
+      "error"
+    );
+    return;
+  }
+
+  const payload = {
+    question_id:
+      codingAdminState.question.id,
+    input:
+      codingEl(
+        "codingAdminCaseInput"
+      ).value,
+    expected_output:
+      codingEl(
+        "codingAdminCaseOutput"
+      ).value,
+    is_hidden:
+      codingEl(
+        "codingAdminCaseHidden"
+      ).checked,
+    marks:
+      Number(
+        codingEl(
+          "codingAdminCaseMarks"
+        ).value
+      )
+  };
+
+  codingMessage(
+    "codingCaseAdminMessage",
+    "Adding test case..."
+  );
+
+  const { error } =
+    await supabaseClient
+      .from("coding_test_cases")
+      .insert(payload);
+
+  if (error) {
+    codingMessage(
+      "codingCaseAdminMessage",
+      error.message,
+      "error"
+    );
+    return;
+  }
+
+  codingMessage(
+    "codingCaseAdminMessage",
+    "✅ Test case added.",
+    "success"
+  );
+
+  resetCodingAdminCaseForm();
+
+  await loadCodingAdminCases();
+}
+
+async function handleCodingAdminClick(
+  event
+) {
+  const selectTest =
+    event.target.closest(
+      "[data-coding-select-test]"
+    );
+
+  if (selectTest) {
+    codingAdminState.test = {
+      id:
+        selectTest.dataset
+          .codingSelectTest,
+      title:
+        selectTest.dataset
+          .codingTestTitle
+    };
+
+    codingAdminState.question =
+      null;
+
+    resetCodingAdminQuestionForm();
+    resetCodingAdminCaseForm();
+    refreshCodingAdminLocks();
+
+    await Promise.all([
+      loadCodingAdminTests(),
+      loadCodingAdminQuestions(),
+      loadCodingAdminCases()
+    ]);
+
+    codingScrollTo(
+      "codingQuestionSection"
+    );
+
+    return;
+  }
+
+  const selectQuestion =
+    event.target.closest(
+      "[data-coding-select-question]"
+    );
+
+  if (selectQuestion) {
+    codingAdminState.question = {
+      id:
+        selectQuestion.dataset
+          .codingSelectQuestion,
+      title:
+        selectQuestion.dataset
+          .codingQuestionTitle
+    };
+
+    resetCodingAdminCaseForm();
+    refreshCodingAdminLocks();
+
+    await Promise.all([
+      loadCodingAdminQuestions(),
+      loadCodingAdminCases()
+    ]);
+
+    codingScrollTo(
+      "codingCaseSection"
+    );
+
+    return;
+  }
+
+  const toggleTest =
+    event.target.closest(
+      "[data-coding-toggle-test]"
+    );
+
+  if (toggleTest) {
+    const testId =
+      toggleTest.dataset
+        .codingToggleTest;
+
+    const currentStatus =
+      toggleTest.dataset
+        .codingTestStatus;
+
+    const newStatus =
+      currentStatus === "published"
+        ? "closed"
+        : "published";
+
+    const { error } =
+      await supabaseClient
+        .from("coding_tests")
+        .update({
+          status:
+            newStatus
+        })
+        .eq(
+          "id",
+          testId
+        );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await loadCodingAdminTests();
+    return;
+  }
+
+  const deleteTest =
+    event.target.closest(
+      "[data-coding-delete-test]"
+    );
+
+  if (deleteTest) {
+    const testId =
+      deleteTest.dataset
+        .codingDeleteTest;
+
+    const title =
+      deleteTest.dataset
+        .codingTestTitle;
+
+    if (
+      !confirm(
+        `Delete "${title}"?\n\n`
+        + "This also deletes its questions, "
+        + "test cases, attempts and submissions."
+      )
+    ) {
+      return;
+    }
+
+    const { error } =
+      await supabaseClient
+        .from("coding_tests")
+        .delete()
+        .eq(
+          "id",
+          testId
+        );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    if (
+      codingAdminState.test?.id
+      === testId
+    ) {
+      codingAdminState.test =
+        null;
+
+      codingAdminState.question =
+        null;
+    }
+
+    refreshCodingAdminLocks();
+
+    await Promise.all([
+      loadCodingAdminTests(),
+      loadCodingAdminQuestions(),
+      loadCodingAdminCases()
+    ]);
+
+    return;
+  }
+
+  const deleteQuestion =
+    event.target.closest(
+      "[data-coding-delete-question]"
+    );
+
+  if (deleteQuestion) {
+    const questionId =
+      deleteQuestion.dataset
+        .codingDeleteQuestion;
+
+    if (
+      !confirm(
+        "Delete this question and all its test cases?"
+      )
+    ) {
+      return;
+    }
+
+    const { error } =
+      await supabaseClient
+        .from("coding_questions")
+        .delete()
+        .eq(
+          "id",
+          questionId
+        );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    if (
+      codingAdminState.question?.id
+      === questionId
+    ) {
+      codingAdminState.question =
+        null;
+    }
+
+    refreshCodingAdminLocks();
+
+    await Promise.all([
+      loadCodingAdminQuestions(),
+      loadCodingAdminCases()
+    ]);
+
+    return;
+  }
+
+  const deleteCase =
+    event.target.closest(
+      "[data-coding-delete-case]"
+    );
+
+  if (deleteCase) {
+    const caseId =
+      deleteCase.dataset
+        .codingDeleteCase;
+
+    if (
+      !confirm(
+        "Delete this test case?"
+      )
+    ) {
+      return;
+    }
+
+    const { error } =
+      await supabaseClient
+        .from("coding_test_cases")
+        .delete()
+        .eq(
+          "id",
+          caseId
+        );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await loadCodingAdminCases();
+  }
+}
+
+function addAnotherCodingQuestion() {
+  if (
+    !codingAdminState.test
+  ) {
+    codingScrollTo(
+      "codingTestAdminForm"
+    );
+    return;
+  }
+
+  codingAdminState.question =
+    null;
+
+  resetCodingAdminQuestionForm();
+  resetCodingAdminCaseForm();
+  refreshCodingAdminLocks();
+
+  codingScrollTo(
+    "codingQuestionSection"
+  );
+
+  codingEl(
+    "codingAdminQuestionTitle"
+  ).focus();
+}
+
+// ============================================================
+// EVENT BINDINGS
+// ============================================================
+
+codingEl(
+  "openCodingTestButton"
+)?.addEventListener(
+  "click",
+  openCodingTest
+);
+
+codingEl(
+  "closeCodingTestButton"
+)?.addEventListener(
+  "click",
+  closeCodingTest
+);
+
+codingEl(
+  "startCodingTestButton"
+)?.addEventListener(
+  "click",
+  startCodingTest
+);
+
+codingEl(
+  "codingRunButton"
+)?.addEventListener(
+  "click",
+  () => codingRun("run")
+);
+
+codingEl(
+  "codingRunTestsButton"
+)?.addEventListener(
+  "click",
+  () => codingRun("samples")
+);
+
+codingEl(
+  "codingSubmitButton"
+)?.addEventListener(
+  "click",
+  () => submitCodingTest(false)
+);
+
+codingEl(
+  "codingPrevQuestion"
+)?.addEventListener(
+  "click",
+  async () => {
+    try {
+      await saveCodingDraft();
+
+      if (
+        codingState.currentIndex > 0
+      ) {
+        codingState.currentIndex -= 1;
+        renderCodingQuestion();
+      }
+    } catch (error) {
+      codingEl(
+        "codingConsoleOutput"
+      ).textContent =
+        error.message;
+    }
+  }
+);
+
+codingEl(
+  "codingNextQuestion"
+)?.addEventListener(
+  "click",
+  async () => {
+    try {
+      await saveCodingDraft();
+
+      if (
+        codingState.currentIndex
+        < codingState.questions.length - 1
+      ) {
+        codingState.currentIndex += 1;
+        renderCodingQuestion();
+      }
+    } catch (error) {
+      codingEl(
+        "codingConsoleOutput"
+      ).textContent =
+        error.message;
+    }
+  }
+);
+
+codingEl(
+  "codingSourceEditor"
+)?.addEventListener(
+  "input",
+  () => {
+    const question =
+      codingState.questions[
+        codingState.currentIndex
+      ];
+
+    if (question) {
+      codingState.codeByQuestion[
+        question.id
+      ] =
+        codingEl(
+          "codingSourceEditor"
+        ).value;
+    }
+  }
+);
+
+codingEl(
+  "manageCodingTestsButton"
+)?.addEventListener(
+  "click",
+  openCodingAdmin
+);
+
+codingEl(
+  "codingAdminCloseButton"
+)?.addEventListener(
+  "click",
+  closeCodingAdmin
+);
+
+document
+  .querySelectorAll(
+    "[data-coding-admin-close]"
+  )
+  .forEach(
+    (element) => {
+      element.addEventListener(
+        "click",
+        closeCodingAdmin
+      );
+    }
+  );
+
+codingEl(
+  "codingTestAdminForm"
+)?.addEventListener(
+  "submit",
+  createCodingTest
+);
+
+codingEl(
+  "codingQuestionAdminForm"
+)?.addEventListener(
+  "submit",
+  addCodingQuestion
+);
+
+codingEl(
+  "codingCaseAdminForm"
+)?.addEventListener(
+  "submit",
+  addCodingCase
+);
+
+codingEl(
+  "codingNewQuestionButton"
+)?.addEventListener(
+  "click",
+  addAnotherCodingQuestion
+);
+
+codingEl(
+  "codingAdminTestsList"
+)?.addEventListener(
+  "click",
+  handleCodingAdminClick
+);
+
+codingEl(
+  "codingAdminQuestionsList"
+)?.addEventListener(
+  "click",
+  handleCodingAdminClick
+);
+
+codingEl(
+  "codingAdminCasesList"
+)?.addEventListener(
+  "click",
+  handleCodingAdminClick
+);
+
+refreshCodingAdminLocks();
